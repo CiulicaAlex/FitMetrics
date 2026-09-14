@@ -1,0 +1,20 @@
+services:
+  fitmetrics:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fitmetrics
+    ports:
+      - "127.0.0.1:5082:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      Database__Provider: Sqlite
+      ConnectionStrings__DefaultConnection: Data Source=/app/data/fitmetrics.db
+    volumes:
+      - fitmetrics-data:/app/data
+    restart: unless-stopped
+    init: true
+
+volumes:
+  fitmetrics-data:
