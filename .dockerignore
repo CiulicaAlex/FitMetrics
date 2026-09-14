@@ -1,0 +1,13 @@
+.git
+.github
+frontend/node_modules
+frontend/dist
+Fit Metrics/bin
+Fit Metrics/obj
+build-checkDebug
+build-validation
+out
+\.nuget
+\.npm-cache
+*.user
+*.suo
