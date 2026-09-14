@@ -121,5 +121,35 @@ namespace Fit_Metrics.Controllers
 
       return Ok(new { message = "Profile updated successfully!", weight = user.Weight, height = user.Height });
     }
+
+    [Authorize(AuthenticationSchemes = "CookieAuth")]
+    [HttpDelete("account")]
+    public async Task<IActionResult> DeleteAccount()
+    {
+      var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+      if (!int.TryParse(userIdClaim, out int userId))
+      {
+        return Unauthorized();
+      }
+
+      var user = await _context.Users.FindAsync(userId);
+      if (user == null)
+      {
+        return NotFound(new { message = "Account not found." });
+      }
+
+      var workouts = await _context.Workouts.Where(w => w.UserId == userId).ToListAsync();
+      var workoutLogs = await _context.WorkoutLogs.Where(l => l.UserId == userId).ToListAsync();
+      var progress = await _context.UserMuscleProgresses.Where(p => p.UserId == userId).ToListAsync();
+
+      _context.Workouts.RemoveRange(workouts);
+      _context.WorkoutLogs.RemoveRange(workoutLogs);
+      _context.UserMuscleProgresses.RemoveRange(progress);
+      _context.Users.Remove(user);
+      await _context.SaveChangesAsync();
+      await HttpContext.SignOutAsync("CookieAuth");
+
+      return Ok(new { message = "Account deleted successfully." });
+    }
   }
 }

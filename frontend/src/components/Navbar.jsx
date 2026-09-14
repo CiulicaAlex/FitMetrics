@@ -6,6 +6,9 @@ export default function Navbar({ user }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
   const accountRef = useRef(null);
 
   const handleLogout = async () => {
@@ -15,6 +18,25 @@ export default function Navbar({ user }) {
       console.error('Logout error:', err);
     }
     navigate('/', { replace: true });
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeletingAccount(true);
+    setDeleteError(null);
+
+    try {
+      const response = await fetchApi('/auth/account', { method: 'DELETE' });
+      if (!response.ok) {
+        setDeleteError('Could not delete your account. Please try again.');
+        return;
+      }
+
+      navigate('/', { replace: true });
+    } catch {
+      setDeleteError('Could not connect to the server. Please try again.');
+    } finally {
+      setDeletingAccount(false);
+    }
   };
 
   useEffect(() => {
@@ -38,7 +60,8 @@ export default function Navbar({ user }) {
   const initial = fullName ? fullName.trim()[0].toUpperCase() : (email ? email[0].toUpperCase() : 'U');
 
   return (
-    <nav style={styles.nav}>
+    <>
+      <nav style={styles.nav}>
       <div className="nav-container" style={styles.container}>
         <div className="nav-left" style={styles.left}>
           <Link to="/dashboard" style={styles.logoWrap}>
@@ -125,6 +148,17 @@ export default function Navbar({ user }) {
                   <span style={styles.statusDot} />
                   <span style={styles.statusText}>Active Account</span>
                 </div>
+
+                <button
+                  onClick={() => {
+                    setShowAccountMenu(false);
+                    setDeleteError(null);
+                    setShowDeleteConfirm(true);
+                  }}
+                  style={styles.deleteAccountBtn}
+                >
+                  Delete Account
+                </button>
               </div>
             )}
           </div>
@@ -134,7 +168,37 @@ export default function Navbar({ user }) {
           </button>
         </div>
       </div>
-    </nav>
+      </nav>
+
+      {showDeleteConfirm && (
+        <div style={styles.modalOverlay} role="presentation">
+          <div style={styles.confirmModal} role="dialog" aria-modal="true" aria-labelledby="delete-account-title">
+            <div style={styles.confirmIcon}>!</div>
+            <h2 id="delete-account-title" style={styles.confirmTitle}>Delete account?</h2>
+            <p style={styles.confirmText}>
+              This permanently deletes your account, workouts, progress, and workout history. This action cannot be undone.
+            </p>
+            {deleteError && <div style={styles.confirmError}>{deleteError}</div>}
+            <div style={styles.confirmActions}>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deletingAccount}
+                style={styles.cancelBtn}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deletingAccount}
+                style={styles.confirmDeleteBtn}
+              >
+                {deletingAccount ? 'DELETING...' : 'DELETE ACCOUNT'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -333,6 +397,97 @@ const styles = {
     fontSize: 10,
     fontWeight: 700,
     letterSpacing: '0.4px',
+  },
+  deleteAccountBtn: {
+    border: '1px solid #7f1d1d',
+    borderRadius: 6,
+    backgroundColor: 'rgba(127, 29, 29, 0.16)',
+    color: '#fca5a5',
+    fontSize: 10,
+    fontWeight: 800,
+    letterSpacing: '0.5px',
+    padding: '8px 10px',
+    cursor: 'pointer',
+    textAlign: 'left',
+  },
+  modalOverlay: {
+    position: 'fixed',
+    inset: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.78)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    zIndex: 200,
+  },
+  confirmModal: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: '#18181b',
+    border: '1px solid #3f3f46',
+    borderRadius: 12,
+    padding: 24,
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.7)',
+    textAlign: 'center',
+  },
+  confirmIcon: {
+    width: 34,
+    height: 34,
+    margin: '0 auto 12px',
+    borderRadius: '50%',
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    border: '1px solid #ef4444',
+    color: '#fca5a5',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight: 900,
+  },
+  confirmTitle: {
+    color: '#ffffff',
+    fontSize: 18,
+    margin: '0 0 10px',
+  },
+  confirmText: {
+    color: '#a1a1aa',
+    fontSize: 12,
+    lineHeight: 1.6,
+    margin: '0 0 18px',
+  },
+  confirmError: {
+    color: '#fca5a5',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    border: '1px solid #7f1d1d',
+    borderRadius: 6,
+    fontSize: 11,
+    padding: '8px 10px',
+    marginBottom: 14,
+  },
+  confirmActions: {
+    display: 'flex',
+    gap: 10,
+  },
+  cancelBtn: {
+    flex: 1,
+    height: 42,
+    border: '1px solid #3f3f46',
+    borderRadius: 6,
+    backgroundColor: '#27272a',
+    color: '#e4e4e7',
+    fontWeight: 800,
+    fontSize: 11,
+    cursor: 'pointer',
+  },
+  confirmDeleteBtn: {
+    flex: 1,
+    height: 42,
+    border: 'none',
+    borderRadius: 6,
+    backgroundColor: '#dc2626',
+    color: '#ffffff',
+    fontWeight: 900,
+    fontSize: 11,
+    cursor: 'pointer',
   },
   logoutBtn: {
     border: '1px solid #27272a',
