@@ -82,7 +82,7 @@ export default function Register() {
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder="Alex Ciulica"
+              placeholder="Your full name"
               style={styles.input}
               required
             />
