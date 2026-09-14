@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { fetchApi } from '../api';
+import { fetchApi, getApiErrorMessage } from '../api';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -48,17 +48,9 @@ export default function Login() {
       if (res.ok) {
         navigate('/dashboard');
       } else {
-        const text = await res.text();
-        let message = 'Invalid email or password.';
-        try {
-          const json = JSON.parse(text);
-          if (json.message) message = json.message;
-        } catch {
-          if (text) message = text;
-        }
-        setError(message);
+        setError(await getApiErrorMessage(res, 'Invalid email or password.'));
       }
-    } catch (err) {
+    } catch {
       setError('Could not connect to backend server. Make sure backend is running.');
     } finally {
       setLoading(false);

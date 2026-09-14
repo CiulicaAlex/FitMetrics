@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { fetchApi } from '../api';
+import { fetchApi, getApiErrorMessage } from '../api';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -50,17 +50,9 @@ export default function Register() {
           navigate('/');
         }, 1200);
       } else {
-        const text = await res.text();
-        let message = 'Could not create account.';
-        try {
-          const json = JSON.parse(text);
-          if (json.message) message = json.message;
-        } catch {
-          if (text) message = text;
-        }
-        setError(message);
+        setError(await getApiErrorMessage(res, 'Could not create account.'));
       }
-    } catch (err) {
+    } catch {
       setError('Could not connect to backend server.');
     } finally {
       setLoading(false);
