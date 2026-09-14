@@ -18,7 +18,7 @@ export async function getApiErrorMessage(response, fallbackMessage) {
   const contentType = response.headers.get('content-type') || '';
 
   if (response.status === 502 || response.status === 503 || response.status === 504) {
-    return 'Serverul public este momentan indisponibil. Încearcă din nou în câteva secunde.';
+    return 'The public server is temporarily unavailable. Please try again in a few seconds.';
   }
 
   if (contentType.includes('application/json')) {
