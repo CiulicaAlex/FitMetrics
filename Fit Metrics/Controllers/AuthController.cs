@@ -119,7 +119,7 @@ namespace Fit_Metrics.Controllers
 
       await _context.SaveChangesAsync();
 
-      return Ok(new { message = "Profilul a fost actualizat cu succes!", weight = user.Weight, height = user.Height });
+      return Ok(new { message = "Profile updated successfully!", weight = user.Weight, height = user.Height });
     }
   }
 }
