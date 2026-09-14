@@ -12,44 +12,37 @@ const initialMuscleGroups = [
   { name: 'BACK', xp: 0, slugs: ['upper-back', 'lower-back', 'trapezius'] },
 ];
 
-// Progression Ranks: Unique fitness tiers with steep XP scaling
-// 1. Iron Initiate (0 - 5k)
-// 2. Vanguard Ascendant (5k - 15k)
-// 3. Apex Juggernaut (15k - 35k)
-// 4. Colossus (35k - 75k)
-// 5. Warlord of Iron (75k - 150k)
-// 6. Sovereign Titan (150k - 250k)
-// 7. Immortal Legend (250k+ -> Global Uncapped Infinite Tier)
+// Progression ranks with simple, realistic fitness levels.
 const RANK_TIERS = [
-  { name: 'Iron Initiate', minXp: 0, color: '#71717a' },
-  { name: 'Vanguard Ascendant', minXp: 5000, color: '#22d3ee' },
-  { name: 'Apex Juggernaut', minXp: 15000, color: '#22c55e' },
-  { name: 'Colossus', minXp: 35000, color: '#eab308' },
-  { name: 'Warlord of Iron', minXp: 75000, color: '#f97316' },
-  { name: 'Sovereign Titan', minXp: 150000, color: '#ec4899' },
-  { name: 'Immortal Legend', minXp: 250000, color: '#10b981' },
+  { name: 'Beginner', minXp: 0, color: '#71717a' },
+  { name: 'Novice', minXp: 5000, color: '#22d3ee' },
+  { name: 'Intermediate', minXp: 15000, color: '#22c55e' },
+  { name: 'Advanced', minXp: 35000, color: '#eab308' },
+  { name: 'Expert', minXp: 75000, color: '#f97316' },
+  { name: 'Elite', minXp: 150000, color: '#ec4899' },
+  { name: 'Master', minXp: 250000, color: '#10b981' },
 ];
 
-const LEGENDARY_TIER_MIN = 250000;
-const LEGENDARY_TIER_STEP = 50000;
+const MASTER_TIER_MIN = 250000;
+const MASTER_TIER_STEP = 50000;
 
 function getRankInfo(totalXp) {
-  if (totalXp >= LEGENDARY_TIER_MIN) {
-    const extraXp = totalXp - LEGENDARY_TIER_MIN;
-    const tierLevel = Math.floor(extraXp / LEGENDARY_TIER_STEP) + 1;
-    const xpIntoTier = extraXp % LEGENDARY_TIER_STEP;
-    const progress = xpIntoTier / LEGENDARY_TIER_STEP;
-    const xpToNext = LEGENDARY_TIER_STEP - xpIntoTier;
+  if (totalXp >= MASTER_TIER_MIN) {
+    const extraXp = totalXp - MASTER_TIER_MIN;
+    const tierLevel = Math.floor(extraXp / MASTER_TIER_STEP) + 1;
+    const xpIntoTier = extraXp % MASTER_TIER_STEP;
+    const progress = xpIntoTier / MASTER_TIER_STEP;
+    const xpToNext = MASTER_TIER_STEP - xpIntoTier;
     return {
       rankIndex: 6,
-      name: `Immortal Legend${tierLevel > 1 ? ` Tier ${tierLevel}` : ''}`,
-      baseName: 'Immortal Legend',
+      name: `Master${tierLevel > 1 ? ` Tier ${tierLevel}` : ''}`,
+      baseName: 'Master',
       color: '#10b981',
       progress,
       xpToNext,
       xpIntoRank: xpIntoTier,
-      xpNeeded: LEGENDARY_TIER_STEP,
-      isLegendary: true,
+      xpNeeded: MASTER_TIER_STEP,
+      isMaster: true,
       tierLevel,
     };
   }
@@ -78,20 +71,20 @@ function getRankInfo(totalXp) {
     xpToNext,
     xpIntoRank,
     xpNeeded,
-    isLegendary: false,
+    isMaster: false,
     tierLevel: tierIndex + 1,
   };
 }
 
 // Muscle Tiers with balanced steep thresholds
 const MUSCLE_TIERS = [
-  { name: 'Dormant', minXp: 0, color: '#3f3f46' },
-  { name: 'Awakened', minXp: 1200, color: '#22d3ee' },
-  { name: 'Hardened', minXp: 4000, color: '#22c55e' },
-  { name: 'Forged Steel', minXp: 10000, color: '#eab308' },
-  { name: 'Apex Sculpt', minXp: 22000, color: '#f97316' },
-  { name: 'Mastery', minXp: 45000, color: '#ec4899' },
-  { name: 'Immortal Form', minXp: 75000, color: '#10b981' },
+  { name: 'Untrained', minXp: 0, color: '#3f3f46' },
+  { name: 'Developing', minXp: 1200, color: '#22d3ee' },
+  { name: 'Conditioned', minXp: 4000, color: '#22c55e' },
+  { name: 'Strong', minXp: 10000, color: '#eab308' },
+  { name: 'Advanced', minXp: 22000, color: '#f97316' },
+  { name: 'Athletic', minXp: 45000, color: '#ec4899' },
+  { name: 'Peak', minXp: 75000, color: '#10b981' },
 ];
 
 function getMuscleRank(xp) {
@@ -105,7 +98,7 @@ function getMuscleRank(xp) {
 
 function getMuscleRankName(xp) {
   const idx = Math.min(getMuscleRank(xp) - 1, MUSCLE_TIERS.length - 1);
-  return MUSCLE_TIERS[idx]?.name || 'Immortal Form';
+  return MUSCLE_TIERS[idx]?.name || 'Peak';
 }
 
 function getMuscleColor(xp) {
@@ -339,7 +332,7 @@ export default function Dashboard() {
 
   const totalXp = muscleGroups.reduce((acc, m) => acc + m.xp, 0);
   const rankInfo = getRankInfo(totalXp);
-  const { rankIndex, name: rankName, progress: rankProgress, xpToNext: xpToNextRank, isLegendary } = rankInfo;
+  const { rankIndex, name: rankName, progress: rankProgress, xpToNext: xpToNextRank, isMaster } = rankInfo;
   const rankColor = getRankThemeColor(rankIndex);
 
   // Body calculations & metrics
@@ -529,10 +522,10 @@ export default function Dashboard() {
                   <span style={{ ...styles.cornerRankTitle, color: rankColor }}>{rankName.toUpperCase()}</span>
                 </div>
                 <div style={styles.cornerRankSub}>
-                  {isLegendary ? (
+                  {isMaster ? (
                     <><span style={{ color: '#ffffff', fontWeight: 900 }}>{xpToNextRank.toLocaleString()} XP</span> to next milestone</>
                   ) : (
-                    <><span style={{ color: '#ffffff', fontWeight: 900 }}>{xpToNextRank.toLocaleString()} XP</span> to {RANK_TIERS[rankIndex + 1]?.name || 'Immortal Legend'}</>
+                    <><span style={{ color: '#ffffff', fontWeight: 900 }}>{xpToNextRank.toLocaleString()} XP</span> to {RANK_TIERS[rankIndex + 1]?.name || 'Master'}</>
                   )}
                 </div>
                 <div style={styles.cornerMiniBar}>
@@ -727,9 +720,9 @@ export default function Dashboard() {
             <div style={{ ...styles.progressFill, width: `${rankProgress * 100}%`, backgroundColor: rankColor }} />
           </div>
           <div style={styles.progressText}>
-            {isLegendary
-              ? `${rankInfo.xpIntoRank.toLocaleString()} XP into Legendary — no cap`
-              : `${rankInfo.xpIntoRank.toLocaleString()} / ${rankInfo.xpNeeded.toLocaleString()} XP to ${RANK_TIERS[rankIndex + 1]?.name || 'Immortal Legend'}`}
+            {isMaster
+              ? `${rankInfo.xpIntoRank.toLocaleString()} XP into Master — no cap`
+              : `${rankInfo.xpIntoRank.toLocaleString()} / ${rankInfo.xpNeeded.toLocaleString()} XP to ${RANK_TIERS[rankIndex + 1]?.name || 'Master'}`}
           </div>
         </div>
 

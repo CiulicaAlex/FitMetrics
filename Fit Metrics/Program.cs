@@ -78,15 +78,41 @@ using (var scope = app.Services.CreateScope())
   {
     database.Database.EnsureCreated();
 
+    var exerciseMedia = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+      ["Bench Press"] = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Bench_Press_-_Medium_Grip/0.jpg",
+      ["Crunch"] = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Crunch/0.jpg",
+      ["Bicep Curl"] = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Curl/0.jpg",
+      ["Barbell Squat"] = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Squat/0.jpg",
+      ["Deadlift"] = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Deadlift/0.jpg"
+    };
+
     if (!database.Exercises.Any())
     {
       database.Exercises.AddRange(
-        new Exercise { Name = "Bench Press", MuscleGroup = "Chest" },
-        new Exercise { Name = "Crunch", MuscleGroup = "Abs" },
-        new Exercise { Name = "Bicep Curl", MuscleGroup = "Biceps" },
-        new Exercise { Name = "Barbell Squat", MuscleGroup = "Legs" },
-        new Exercise { Name = "Deadlift", MuscleGroup = "Back" });
+        new Exercise { Name = "Bench Press", MuscleGroup = "Chest", VideoUrl = exerciseMedia["Bench Press"] },
+        new Exercise { Name = "Crunch", MuscleGroup = "Abs", VideoUrl = exerciseMedia["Crunch"] },
+        new Exercise { Name = "Bicep Curl", MuscleGroup = "Biceps", VideoUrl = exerciseMedia["Bicep Curl"] },
+        new Exercise { Name = "Barbell Squat", MuscleGroup = "Legs", VideoUrl = exerciseMedia["Barbell Squat"] },
+        new Exercise { Name = "Deadlift", MuscleGroup = "Back", VideoUrl = exerciseMedia["Deadlift"] });
       database.SaveChanges();
+    }
+    else
+    {
+      var changed = false;
+      foreach (var exercise in database.Exercises.ToList())
+      {
+        if (string.IsNullOrWhiteSpace(exercise.VideoUrl) && exerciseMedia.TryGetValue(exercise.Name, out var mediaUrl))
+        {
+          exercise.VideoUrl = mediaUrl;
+          changed = true;
+        }
+      }
+
+      if (changed)
+      {
+        database.SaveChanges();
+      }
     }
   }
 }
