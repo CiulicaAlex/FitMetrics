@@ -85,41 +85,97 @@ using (var scope = app.Services.CreateScope())
   {
     database.Database.EnsureCreated();
 
-    var exerciseMedia = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    var defaultExercises = new[]
     {
-      ["Bench Press"] = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Bench_Press_-_Medium_Grip/0.jpg",
-      ["Crunch"] = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Crunch/0.jpg",
-      ["Bicep Curl"] = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Curl/0.jpg",
-      ["Barbell Squat"] = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Squat/0.jpg",
-      ["Deadlift"] = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Deadlift/0.jpg"
+      // Chest
+      new Exercise { Name = "Bench Press", MuscleGroup = "Chest", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Bench_Press_-_Medium_Grip/0.jpg" },
+      new Exercise { Name = "Dumbbell Flyes", MuscleGroup = "Chest", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dumbbell_Flyes/0.jpg" },
+      new Exercise { Name = "Incline Bench Press", MuscleGroup = "Chest", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Incline_Bench_Press_-_Medium_Grip/0.jpg" },
+
+      // Back and traps
+      new Exercise { Name = "Bent Over Barbell Row", MuscleGroup = "Upper Back", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Bent_Over_Barbell_Row/0.jpg" },
+      new Exercise { Name = "Seated Cable Rows", MuscleGroup = "Upper Back", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Cable_Rows/0.jpg" },
+      new Exercise { Name = "Alternating Kettlebell Row", MuscleGroup = "Upper Back", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Alternating_Kettlebell_Row/0.jpg" },
+      new Exercise { Name = "Deadlift", MuscleGroup = "Lower Back", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Deadlift/0.jpg" },
+      new Exercise { Name = "Hyperextensions (Back Extensions)", MuscleGroup = "Lower Back", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Hyperextensions_Back_Extensions/0.jpg" },
+      new Exercise { Name = "Superman", MuscleGroup = "Lower Back", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Superman/0.jpg" },
+      new Exercise { Name = "Barbell Shrug", MuscleGroup = "Traps", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Shrug/0.jpg" },
+      new Exercise { Name = "Dumbbell Shrug", MuscleGroup = "Traps", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dumbbell_Shrug/0.jpg" },
+      new Exercise { Name = "Cable Shrugs", MuscleGroup = "Traps", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Shrugs/0.jpg" },
+
+      // Shoulders and arms
+      new Exercise { Name = "Arnold Dumbbell Press", MuscleGroup = "Shoulders", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Arnold_Dumbbell_Press/0.jpg" },
+      new Exercise { Name = "Alternating Cable Shoulder Press", MuscleGroup = "Shoulders", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Alternating_Cable_Shoulder_Press/0.jpg" },
+      new Exercise { Name = "Side Lateral Raise", MuscleGroup = "Shoulders", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_Lateral_Raise/0.jpg" },
+      new Exercise { Name = "Bicep Curl", MuscleGroup = "Biceps", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Curl/0.jpg" },
+      new Exercise { Name = "Alternate Hammer Curl", MuscleGroup = "Biceps", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Alternate_Hammer_Curl/0.jpg" },
+      new Exercise { Name = "Cable Preacher Curl", MuscleGroup = "Biceps", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Preacher_Curl/0.jpg" },
+      new Exercise { Name = "Bench Dips", MuscleGroup = "Triceps", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Bench_Dips/0.jpg" },
+      new Exercise { Name = "Cable Incline Triceps Extension", MuscleGroup = "Triceps", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Incline_Triceps_Extension/0.jpg" },
+      new Exercise { Name = "Band Skull Crusher", MuscleGroup = "Triceps", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Band_Skull_Crusher/0.jpg" },
+      new Exercise { Name = "Cable Wrist Curl", MuscleGroup = "Forearms", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Wrist_Curl/0.jpg" },
+      new Exercise { Name = "Farmer's Walk", MuscleGroup = "Forearms", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Farmers_Walk/0.jpg" },
+      new Exercise { Name = "Finger Curls", MuscleGroup = "Forearms", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Finger_Curls/0.jpg" },
+
+      // Core
+      new Exercise { Name = "Crunch", MuscleGroup = "Abs", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Crunch/0.jpg" },
+      new Exercise { Name = "Hanging Leg Raise", MuscleGroup = "Abs", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Hanging_Leg_Raise/0.jpg" },
+      new Exercise { Name = "Plank", MuscleGroup = "Abs", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Plank/0.jpg" },
+      new Exercise { Name = "Russian Twist", MuscleGroup = "Obliques", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Russian_Twist/0.jpg" },
+      new Exercise { Name = "Side Bridge", MuscleGroup = "Obliques", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_Bridge/0.jpg" },
+      new Exercise { Name = "Barbell Side Bend", MuscleGroup = "Obliques", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Side_Bend/0.jpg" },
+
+      // Lower body
+      new Exercise { Name = "Barbell Hip Thrust", MuscleGroup = "Glutes", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Hip_Thrust/0.jpg" },
+      new Exercise { Name = "Glute Kickback", MuscleGroup = "Glutes", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Glute_Kickback/0.jpg" },
+      new Exercise { Name = "Butt Lift (Bridge)", MuscleGroup = "Glutes", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Butt_Lift_Bridge/0.jpg" },
+      new Exercise { Name = "Barbell Squat", MuscleGroup = "Quadriceps", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Squat/0.jpg" },
+      new Exercise { Name = "Barbell Full Squat", MuscleGroup = "Quadriceps", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Full_Squat/0.jpg" },
+      new Exercise { Name = "Barbell Lunge", MuscleGroup = "Quadriceps", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Lunge/0.jpg" },
+      new Exercise { Name = "90/90 Hamstring", MuscleGroup = "Hamstrings", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/90_90_Hamstring/0.jpg" },
+      new Exercise { Name = "Ball Leg Curl", MuscleGroup = "Hamstrings", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Ball_Leg_Curl/0.jpg" },
+      new Exercise { Name = "Floor Glute-Ham Raise", MuscleGroup = "Hamstrings", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Floor_Glute-Ham_Raise/0.jpg" },
+      new Exercise { Name = "Barbell Seated Calf Raise", MuscleGroup = "Calves", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Seated_Calf_Raise/0.jpg" },
+      new Exercise { Name = "Calf Press", MuscleGroup = "Calves", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Calf_Press/0.jpg" },
+      new Exercise { Name = "Calf Raise On A Dumbbell", MuscleGroup = "Calves", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Calf_Raise_On_A_Dumbbell/0.jpg" },
+
+      // Neck
+      new Exercise { Name = "Chin To Chest Stretch", MuscleGroup = "Neck", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Chin_To_Chest_Stretch/0.jpg" },
+      new Exercise { Name = "Isometric Neck Exercise - Front And Back", MuscleGroup = "Neck", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Isometric_Neck_Exercise_-_Front_And_Back/0.jpg" },
+      new Exercise { Name = "Side Neck Stretch", MuscleGroup = "Neck", VideoUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_Neck_Stretch/0.jpg" },
     };
 
-    if (!database.Exercises.Any())
+    var existingByName = database.Exercises
+      .ToList()
+      .GroupBy(exercise => exercise.Name, StringComparer.OrdinalIgnoreCase)
+      .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+    var changed = false;
+
+    foreach (var seed in defaultExercises)
     {
-      database.Exercises.AddRange(
-        new Exercise { Name = "Bench Press", MuscleGroup = "Chest", VideoUrl = exerciseMedia["Bench Press"] },
-        new Exercise { Name = "Crunch", MuscleGroup = "Abs", VideoUrl = exerciseMedia["Crunch"] },
-        new Exercise { Name = "Bicep Curl", MuscleGroup = "Biceps", VideoUrl = exerciseMedia["Bicep Curl"] },
-        new Exercise { Name = "Barbell Squat", MuscleGroup = "Legs", VideoUrl = exerciseMedia["Barbell Squat"] },
-        new Exercise { Name = "Deadlift", MuscleGroup = "Back", VideoUrl = exerciseMedia["Deadlift"] });
-      database.SaveChanges();
-    }
-    else
-    {
-      var changed = false;
-      foreach (var exercise in database.Exercises.ToList())
+      if (!existingByName.TryGetValue(seed.Name, out var existing))
       {
-        if (string.IsNullOrWhiteSpace(exercise.VideoUrl) && exerciseMedia.TryGetValue(exercise.Name, out var mediaUrl))
-        {
-          exercise.VideoUrl = mediaUrl;
-          changed = true;
-        }
+        database.Exercises.Add(seed);
+        changed = true;
+        continue;
       }
 
-      if (changed)
+      if (!string.Equals(existing.MuscleGroup, seed.MuscleGroup, StringComparison.Ordinal))
       {
-        database.SaveChanges();
+        existing.MuscleGroup = seed.MuscleGroup;
+        changed = true;
       }
+
+      if (string.IsNullOrWhiteSpace(existing.VideoUrl))
+      {
+        existing.VideoUrl = seed.VideoUrl;
+        changed = true;
+      }
+    }
+
+    if (changed)
+    {
+      database.SaveChanges();
     }
   }
 }

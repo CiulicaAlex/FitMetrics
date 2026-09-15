@@ -6,10 +6,20 @@ import { fetchApi } from '../api';
 
 const initialMuscleGroups = [
   { name: 'CHEST', xp: 0, slugs: ['chest'] },
+  { name: 'UPPER BACK', xp: 0, slugs: ['upper-back'] },
+  { name: 'LOWER BACK', xp: 0, slugs: ['lower-back'] },
+  { name: 'TRAPS', xp: 0, slugs: ['trapezius'] },
+  { name: 'SHOULDERS', xp: 0, slugs: ['front-deltoids', 'back-deltoids'] },
   { name: 'ABS', xp: 0, slugs: ['abs'] },
+  { name: 'OBLIQUES', xp: 0, slugs: ['obliques'] },
   { name: 'BICEPS', xp: 0, slugs: ['biceps'] },
-  { name: 'LEGS', xp: 0, slugs: ['quadriceps', 'hamstring', 'calves'] },
-  { name: 'BACK', xp: 0, slugs: ['upper-back', 'lower-back', 'trapezius'] },
+  { name: 'TRICEPS', xp: 0, slugs: ['triceps'] },
+  { name: 'FOREARMS', xp: 0, slugs: ['forearm'] },
+  { name: 'GLUTES', xp: 0, slugs: ['gluteal'] },
+  { name: 'QUADRICEPS', xp: 0, slugs: ['quadriceps'] },
+  { name: 'HAMSTRINGS', xp: 0, slugs: ['hamstring'] },
+  { name: 'CALVES', xp: 0, slugs: ['calves'] },
+  { name: 'NECK', xp: 0, slugs: ['neck'] },
 ];
 
 // Progression ranks with simple, realistic fitness levels.
