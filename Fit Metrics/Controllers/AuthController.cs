@@ -25,6 +25,12 @@ namespace Fit_Metrics.Controllers
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterDto dto)
     {
+      var gender = dto.Gender.Trim().ToUpperInvariant();
+      if (gender is not ("MALE" or "FEMALE" or "OTHER"))
+      {
+        return BadRequest("Please select a valid gender.");
+      }
+
       if (await _context.Users.AnyAsync(u => u.Email == dto.Email))
       {
         return BadRequest("Email already exists");
@@ -36,7 +42,8 @@ namespace Fit_Metrics.Controllers
             {
                 FullName = dto.FullName.Trim(),
                 Email = dto.Email.Trim(),
-                PasswordHash = passwordHash
+                PasswordHash = passwordHash,
+                Gender = gender
             };
 
       _context.Users.Add(user);
@@ -91,11 +98,18 @@ namespace Fit_Metrics.Controllers
       var user = await _context.Users.FindAsync(userId);
       if (user == null) return NotFound();
 
+      if (string.IsNullOrWhiteSpace(user.Gender))
+      {
+        user.Gender = "MALE";
+        await _context.SaveChangesAsync();
+      }
+
             return Ok(new
             {
                 FullName = user.FullName,
               Id = user.Id,
                 Email = user.Email,
+                Gender = user.Gender,
                 Weight = user.Weight,
                 Height = user.Height
             });

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Model from 'react-body-highlighter';
 import Navbar from '../components/Navbar';
+import BodyVisualizer from '../components/BodyVisualizer';
 import { fetchApi } from '../api';
 
 const initialMuscleGroups = [
@@ -599,7 +599,7 @@ export default function Dashboard() {
                 ))}
 
                 <div style={styles.bodyCenterContainer}>
-                  <Model
+                  <BodyVisualizer
                     data={bodyData}
                     type={bodySide === 'front' ? 'anterior' : 'posterior'}
                     bodyColor="#3f3f46"

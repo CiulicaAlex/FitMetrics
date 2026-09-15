@@ -8,6 +8,7 @@ export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [gender, setGender] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -18,7 +19,7 @@ export default function Register() {
     e.preventDefault();
     setError(null);
 
-    if (!fullName.trim() || !email.trim() || !password) {
+    if (!fullName.trim() || !email.trim() || !password || !gender) {
       setError('Please fill in all required fields.');
       return;
     }
@@ -41,6 +42,7 @@ export default function Register() {
           fullName: fullName.trim(),
           email: email.trim(),
           password,
+          gender,
         }),
       });
 
@@ -142,6 +144,47 @@ export default function Register() {
             </div>
           </div>
 
+          <div style={styles.field}>
+            <div style={styles.genderLabelRow}>
+              <label style={styles.label}>GENDER</label>
+              <span style={styles.optionalLabel}>REQUIRED</span>
+            </div>
+            <div style={styles.genderGrid} role="radiogroup" aria-label="Gender">
+              {['MALE', 'FEMALE', 'OTHER'].map((option) => {
+                const selected = gender === option;
+                return (
+                  <label key={option} style={styles.genderChoice}>
+                    <input
+                      type="radio"
+                      name="gender"
+                      value={option}
+                      checked={selected}
+                      onChange={(e) => setGender(e.target.value)}
+                      style={styles.visuallyHidden}
+                      required={option === 'MALE'}
+                    />
+                    <span
+                      style={{
+                        ...styles.genderOption,
+                        ...(selected ? styles.genderOptionSelected : {}),
+                      }}
+                    >
+                      <span>{option}</span>
+                      <span
+                        style={{
+                          ...styles.genderCheck,
+                          ...(selected ? styles.genderCheckSelected : {}),
+                        }}
+                      >
+                        {selected ? '✓' : ''}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
           <button type="submit" disabled={loading} style={styles.submitButton}>
             {loading ? 'CREATING ACCOUNT...' : 'SIGN UP'}
           </button>
@@ -224,6 +267,72 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: 6,
+  },
+  genderLabelRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  optionalLabel: {
+    color: '#52525b',
+    fontSize: 9,
+    fontWeight: 800,
+    letterSpacing: '0.7px',
+  },
+  genderGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    gap: 8,
+  },
+  genderChoice: {
+    display: 'block',
+    cursor: 'pointer',
+  },
+  visuallyHidden: {
+    position: 'absolute',
+    opacity: 0,
+    pointerEvents: 'none',
+  },
+  genderOption: {
+    minHeight: 42,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+    padding: '9px 10px',
+    borderRadius: 6,
+    border: '1px solid #27272a',
+    backgroundColor: '#09090b',
+    color: '#71717a',
+    fontSize: 10,
+    fontWeight: 900,
+    letterSpacing: '0.5px',
+    transition: 'all 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
+  },
+  genderOptionSelected: {
+    borderColor: '#10b981',
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    color: '#ffffff',
+    transform: 'translateY(-1px)',
+    boxShadow: '0 5px 14px rgba(16, 185, 129, 0.16)',
+  },
+  genderCheck: {
+    width: 17,
+    height: 17,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '50%',
+    border: '1px solid #3f3f46',
+    color: '#09090b',
+    fontSize: 11,
+    flexShrink: 0,
+    transition: 'all 0.2s ease',
+  },
+  genderCheckSelected: {
+    borderColor: '#10b981',
+    backgroundColor: '#10b981',
+    animation: 'genderCheckPop 220ms ease-out',
   },
   label: {
     color: '#a1a1aa',

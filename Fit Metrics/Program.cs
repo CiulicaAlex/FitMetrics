@@ -2,6 +2,7 @@ using Fit_Metrics;
 using Fit_Metrics.Models;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -84,6 +85,28 @@ using (var scope = app.Services.CreateScope())
   if (useSqlite)
   {
     database.Database.EnsureCreated();
+
+    // EnsureCreated does not alter an existing SQLite database when the model
+    // gains a new field, so add Gender safely for databases created earlier.
+    try
+    {
+      database.Database.ExecuteSqlRaw("ALTER TABLE \"Users\" ADD COLUMN \"Gender\" TEXT NOT NULL DEFAULT ''");
+    }
+    catch (SqliteException exception) when (
+      exception.SqliteErrorCode == 1 &&
+      exception.Message.Contains("duplicate column", StringComparison.OrdinalIgnoreCase))
+    {
+      // The column already exists in a newer database.
+    }
+
+    // The local database currently contains one existing account from before
+    // Gender was added. Give that account the requested default value once.
+    var existingUsers = database.Users.ToList();
+    if (existingUsers.Count == 1 && string.IsNullOrWhiteSpace(existingUsers[0].Gender))
+    {
+      existingUsers[0].Gender = "MALE";
+      database.SaveChanges();
+    }
 
     var defaultExercises = new[]
     {

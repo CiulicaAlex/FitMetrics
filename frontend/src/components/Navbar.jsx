@@ -56,6 +56,7 @@ export default function Navbar({ user }) {
 
   const fullName = user?.fullName || user?.FullName || 'User';
   const email = user?.email || user?.Email || 'N/A';
+  const gender = user?.gender || user?.Gender || 'MALE';
   const userId = user?.id || user?.Id || 1;
   const initial = fullName ? fullName.trim()[0].toUpperCase() : (email ? email[0].toUpperCase() : 'U');
 
@@ -128,6 +129,11 @@ export default function Navbar({ user }) {
                 <div style={styles.detailRow}>
                   <span style={styles.detailLabel}>EMAIL ADDRESS</span>
                   <span style={styles.detailValue}>{email}</span>
+                </div>
+
+                <div style={styles.detailRow}>
+                  <span style={styles.detailLabel}>GENDER</span>
+                  <span style={styles.detailValue}>{gender}</span>
                 </div>
 
                 <div style={styles.detailRow}>
