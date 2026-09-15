@@ -1,8 +1,15 @@
 using Fit_Metrics;
 using Fit_Metrics.Models;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var dataProtectionPath = Path.Combine(builder.Environment.ContentRootPath, "data", "keys");
+Directory.CreateDirectory(dataProtectionPath);
+builder.Services.AddDataProtection()
+  .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionPath))
+  .SetApplicationName("FitMetrics");
 
 // Add services to the container.
 
