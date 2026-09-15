@@ -4,6 +4,69 @@ import { fetchApi } from '../api';
 import Navbar from '../components/Navbar';
 import { ExerciseMediaPreview } from '../components/ExerciseMediaPreview';
 
+const POPULAR_WORKOUTS = [
+  {
+    id: 'arnold-arms',
+    name: 'Arnold Arms Day',
+    label: 'OLD-SCHOOL ARM SPECIALIZATION',
+    description:
+      'A classic biceps-and-triceps session inspired by Arnold Schwarzenegger\'s high-volume arm days.',
+    muscleGroups: ['Biceps', 'Triceps'],
+    exercises: [
+      'Bicep Curl',
+      'Incline Dumbbell Curl',
+      'Concentration Curls',
+      'Close-Grip Barbell Bench Press',
+      'Lying Triceps Press',
+      'Triceps Pushdown',
+    ],
+  },
+  {
+    id: 'ronnie-arms',
+    name: 'Ronnie Coleman Arms',
+    label: 'HEAVY ARM DAY',
+    description:
+      'A heavy-and-volume arm template inspired by Ronnie Coleman\'s classic bodybuilding approach.',
+    muscleGroups: ['Biceps', 'Triceps'],
+    exercises: [
+      'Dumbbell Bicep Curl',
+      'Alternate Hammer Curl',
+      'Cable Preacher Curl',
+      'Bench Dips',
+      'Band Skull Crusher',
+      'Cable Incline Triceps Extension',
+    ],
+  },
+  {
+    id: 'classic-ppl',
+    name: 'Classic Push / Pull / Legs',
+    label: 'FOUNDATION SPLIT',
+    description: 'A simple three-session split for building a balanced training week.',
+    muscleGroups: [
+      'Chest',
+      'Shoulders',
+      'Triceps',
+      'Upper Back',
+      'Lower Back',
+      'Biceps',
+      'Quadriceps',
+      'Glutes',
+      'Calves',
+    ],
+    exercises: [
+      'Bench Press',
+      'Arnold Dumbbell Press',
+      'Cable Incline Triceps Extension',
+      'Bent Over Barbell Row',
+      'Deadlift',
+      'Bicep Curl',
+      'Barbell Squat',
+      'Barbell Hip Thrust',
+      'Barbell Seated Calf Raise',
+    ],
+  },
+];
+
 export default function Workouts() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
@@ -173,6 +236,30 @@ export default function Workouts() {
     }
   };
 
+  const loadPopularWorkout = (template) => {
+    const selected = template.exercises
+      .map((name) =>
+        exercises.find((exercise) => exercise.name.toLowerCase() === name.toLowerCase())
+      )
+      .filter(Boolean);
+    const missing = template.exercises.filter(
+      (name) => !selected.some((exercise) => exercise.name.toLowerCase() === name.toLowerCase())
+    );
+
+    if (missing.length > 0) {
+      alert(`Some template exercises are not available yet: ${missing.join(', ')}`);
+      return;
+    }
+
+    setEditingWorkoutId(null);
+    setWorkoutName(template.name);
+    setSelectedExercises(selected);
+    setPreviewExercise(selected[0] || null);
+    setSelectedMuscleGroup('');
+    setSearchQuery('');
+    setShowEditor(true);
+  };
+
   return (
     <div style={styles.page}>
       <Navbar user={user} />
@@ -239,6 +326,48 @@ export default function Workouts() {
             ))}
           </div>
         )}
+
+        <section style={styles.popularSection}>
+          <div style={styles.popularHeader}>
+            <div>
+              <div style={styles.eyebrow}>NO IDEA?</div>
+              <h2 style={styles.popularTitle}>SEARCH FOR POPULAR WORKOUTS</h2>
+              <p style={styles.popularIntro}>
+                Start with a proven training template, then customize it in the builder.
+              </p>
+            </div>
+          </div>
+
+          <div style={styles.popularGrid}>
+            {POPULAR_WORKOUTS.map((template) => (
+              <article key={template.id} style={styles.popularCard}>
+                <div style={styles.popularCardTop}>
+                  <span style={styles.popularLabel}>{template.label}</span>
+                  <span style={styles.exerciseCount}>{template.exercises.length} EX</span>
+                </div>
+                <h3 style={styles.popularName}>{template.name}</h3>
+                <p style={styles.popularDescription}>{template.description}</p>
+                <div style={styles.popularMeta}>{template.muscleGroups.join('  /  ')}</div>
+                <div style={styles.popularExerciseList}>
+                  {template.exercises.map((exercise) => (
+                    <div key={exercise} style={styles.popularExerciseItem}>
+                      <span style={styles.popularBullet}>+</span>
+                      {exercise}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => loadPopularWorkout(template)}
+                  disabled={loadingExercises}
+                  style={styles.popularLoadButton}
+                >
+                  LOAD INTO BUILDER
+                </button>
+              </article>
+            ))}
+          </div>
+        </section>
       </main>
 
       {/* Editor Modal */}
@@ -545,6 +674,109 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: 14,
+  },
+  popularSection: {
+    marginTop: 16,
+    paddingTop: 26,
+    borderTop: '1px solid #27272a',
+  },
+  popularHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    gap: 16,
+    marginBottom: 16,
+  },
+  popularTitle: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: 900,
+    letterSpacing: '0.7px',
+    margin: 0,
+  },
+  popularIntro: {
+    color: '#71717a',
+    fontSize: 12,
+    lineHeight: 1.5,
+    margin: '7px 0 0',
+  },
+  popularGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+    gap: 14,
+  },
+  popularCard: {
+    background: 'linear-gradient(145deg, #17171c 0%, #111113 100%)',
+    border: '1px solid #303038',
+    borderRadius: 10,
+    padding: 18,
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: 360,
+    boxShadow: '0 12px 28px rgba(0, 0, 0, 0.18)',
+  },
+  popularCardTop: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  popularLabel: {
+    color: '#10b981',
+    fontSize: 9,
+    fontWeight: 900,
+    letterSpacing: '1px',
+  },
+  popularName: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: 900,
+    margin: '14px 0 7px',
+  },
+  popularDescription: {
+    color: '#a1a1aa',
+    fontSize: 12,
+    lineHeight: 1.5,
+    margin: 0,
+  },
+  popularMeta: {
+    color: '#71717a',
+    fontSize: 9,
+    fontWeight: 800,
+    letterSpacing: '0.7px',
+    lineHeight: 1.5,
+    marginTop: 12,
+  },
+  popularExerciseList: {
+    borderTop: '1px solid #27272a',
+    marginTop: 14,
+    paddingTop: 12,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 7,
+    flex: 1,
+  },
+  popularExerciseItem: {
+    color: '#d4d4d8',
+    fontSize: 11,
+    lineHeight: 1.3,
+  },
+  popularBullet: {
+    color: '#10b981',
+    fontWeight: 900,
+    marginRight: 7,
+  },
+  popularLoadButton: {
+    backgroundColor: '#10b981',
+    color: '#06130e',
+    border: 'none',
+    borderRadius: 6,
+    padding: '11px 14px',
+    marginTop: 18,
+    fontSize: 10,
+    fontWeight: 900,
+    letterSpacing: '0.7px',
+    cursor: 'pointer',
   },
   workoutCard: {
     backgroundColor: '#141418',
