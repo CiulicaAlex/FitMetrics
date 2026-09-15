@@ -248,14 +248,14 @@ export default function WorkoutSession() {
     <div style={styles.page}>
       <Navbar user={user} />
 
-      <main style={styles.content}>
+      <main className="session-content" style={styles.content}>
         {/* Header */}
-        <div style={styles.header}>
+        <div className="session-header" style={styles.header}>
           <div style={styles.headerLeft}>
             <div style={styles.eyebrow}>PULSE FIT / ACTIVE SET</div>
             <h1 style={styles.title}>{workout.name}</h1>
           </div>
-          <div style={styles.headerActions}>
+          <div className="session-header-actions" style={styles.headerActions}>
             <button onClick={handleBackClick} style={styles.backButton}>
               Back
             </button>
@@ -268,7 +268,7 @@ export default function WorkoutSession() {
         {toast && <div style={styles.toast}>{toast}</div>}
 
         {/* Live Session Metrics Card */}
-        <div style={styles.sessionStatsCard}>
+        <div className="session-stats-card" style={styles.sessionStatsCard}>
           <div style={styles.sessionStatItem}>
             <span style={styles.sessionStatLabel}>TOTAL WEIGHT</span>
             <div style={styles.sessionStatValueGreen}>
@@ -284,7 +284,7 @@ export default function WorkoutSession() {
         </div>
 
         {/* Exercise Chips Selector */}
-        <div style={styles.exercisePicker}>
+        <div className="session-exercise-picker" style={styles.exercisePicker}>
           {exercises.map((ex) => (
             <button
               key={ex.id}
@@ -310,9 +310,9 @@ export default function WorkoutSession() {
 
         {/* Rest Timer or Exercise View */}
         {restActive ? (
-          <div style={styles.restCard}>
+          <div className="session-rest-card" style={styles.restCard}>
             <div style={styles.restLabel}>REST</div>
-            <div style={styles.restTimer}>{restSeconds}s</div>
+            <div className="session-rest-timer" style={styles.restTimer}>{restSeconds}s</div>
             <div style={styles.restTimerBar}>
               <div
                 style={{
@@ -366,10 +366,10 @@ export default function WorkoutSession() {
               videoUrl={selectedExercise.videoUrl}
             />
 
-            <form onSubmit={handleLogSet} style={styles.logCard}>
+            <form onSubmit={handleLogSet} className="session-log-card" style={styles.logCard}>
               <div style={styles.logTitle}>LOG SET PROGRESS</div>
 
-              <div style={styles.statsRow}>
+              <div className="session-stats-row" style={styles.statsRow}>
                 <div style={styles.statField}>
                   <label style={styles.statLabel}>SETS</label>
                   <input
@@ -407,7 +407,7 @@ export default function WorkoutSession() {
                 </div>
               </div>
 
-              <div style={styles.liveCalcRow}>
+              <div className="session-live-calc" style={styles.liveCalcRow}>
                 <span style={{ color: '#a1a1aa', fontSize: 11 }}>Volume for this set:</span>
                 <strong style={{ color: '#10b981', fontSize: 13 }}>
                   {sets} × {reps} × {weight} kg ={' '}
@@ -425,11 +425,11 @@ export default function WorkoutSession() {
 
         {/* Logged Sets History */}
         {sessionLogs.length > 0 && (
-          <div style={styles.historyCard}>
+          <div className="session-history-card" style={styles.historyCard}>
             <h3 style={styles.historyTitle}>Sets logged ({sessionLogs.length})</h3>
             <div style={styles.historyList}>
               {sessionLogs.map((log) => (
-                <div key={log.id} style={styles.historyItem}>
+                <div key={log.id} className="session-history-item" style={styles.historyItem}>
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={styles.historyExName}>{log.exerciseName}</div>
                     <div style={styles.historyMeta}>
@@ -454,7 +454,7 @@ export default function WorkoutSession() {
 
       {/* Exit Confirmation Modal */}
       {showExitModal && (
-        <div style={styles.modalOverlay}>
+        <div className="session-modal-overlay" style={styles.modalOverlay}>
           <div style={styles.modalCard}>
             <div style={styles.modalIcon}>⚠</div>
             <h3 style={styles.modalTitle}>Leave this session?</h3>

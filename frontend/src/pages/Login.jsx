@@ -67,7 +67,7 @@ export default function Login() {
 
   return (
     <div style={styles.container}>
-      <div style={styles.headerWrap}>
+      <div className="auth-header" style={styles.headerWrap}>
         <h1 style={styles.appTitle}>
           <span>Pulse</span>
           <span style={{ color: '#10b981', marginLeft: 4 }}>Fit</span>
@@ -75,7 +75,7 @@ export default function Login() {
         <p style={styles.appSubtitle}>Muscle Tracking and Progress System</p>
       </div>
 
-      <div style={styles.card}>
+      <div className="auth-card" style={styles.card}>
         <h2 style={styles.cardTitle}>Sign In</h2>
 
         {error && <div style={styles.errorBox}>{error}</div>}

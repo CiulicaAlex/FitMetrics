@@ -410,9 +410,9 @@ export default function Dashboard() {
     <div style={styles.page}>
       <Navbar user={user} />
 
-      <main style={styles.main}>
+      <main className="dashboard-main" style={styles.main}>
         {/* Top Header */}
-        <div style={styles.headerRow}>
+        <div className="dashboard-header" style={styles.headerRow}>
           <div>
             <h1 style={styles.pageTitle}>Dashboard</h1>
             <p style={styles.pageSubtitle}>Physical metrics, muscle progression, and completed workout logs</p>
@@ -423,7 +423,7 @@ export default function Dashboard() {
         </div>
 
         {/* 3 Physical Stats Cards */}
-        <div style={styles.statsGrid}>
+        <div className="dashboard-stats-grid" style={styles.statsGrid}>
           <div style={styles.statCard}>
             <div style={styles.statCardTop}>
               <span style={styles.statLabel}>Height</span>
@@ -461,8 +461,8 @@ export default function Dashboard() {
         </div>
 
         {/* BMI Scale Card */}
-        <div style={styles.card}>
-          <div style={styles.cardHeader}>
+        <div className="dashboard-card" style={styles.card}>
+          <div className="dashboard-card-header" style={styles.cardHeader}>
             <h2 style={styles.cardTitle}>BMI Scale</h2>
             <span style={{ ...styles.badge, backgroundColor: `${bmiInfo.color}22`, color: bmiInfo.color }}>
               {bmiInfo.category} ({bmi})
@@ -483,7 +483,7 @@ export default function Dashboard() {
               <div style={{ ...styles.markerLabel, color: bmiInfo.color }}>{bmi}</div>
             </div>
 
-            <div style={styles.scaleLabels}>
+            <div className="dashboard-scale-labels" style={styles.scaleLabels}>
               <span>15.0</span>
               <span>18.5 (Normal)</span>
               <span>25.0 (Overweight)</span>
@@ -493,8 +493,8 @@ export default function Dashboard() {
         </div>
 
         {/* Body Visualizer Card */}
-        <div style={styles.card}>
-          <div style={styles.cardHeader}>
+        <div className="dashboard-card" style={styles.card}>
+          <div className="dashboard-card-header" style={styles.cardHeader}>
             <div>
               <h2 style={styles.cardTitle}>Body Visualizer</h2>
               <div style={styles.cardMeta}>Visual muscle training load & anatomical metrics</div>
@@ -522,9 +522,9 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div style={styles.visualizerContentGrid}>
+          <div className="dashboard-visualizer-grid" style={styles.visualizerContentGrid}>
             {/* Left Column: Mannequin Visualizer with Corner Rank Badge and Minimalist Background Animation */}
-            <div style={styles.visualizerMannequinCol}>
+            <div className="dashboard-mannequin-col" style={styles.visualizerMannequinCol}>
               {/* Corner Rank HUD Badge */}
               <div style={styles.cornerRankBadge}>
                 <div style={styles.cornerRankTop}>
@@ -598,7 +598,7 @@ export default function Dashboard() {
                   />
                 ))}
 
-                <div style={styles.bodyCenterContainer}>
+                <div className="dashboard-body-center" style={styles.bodyCenterContainer}>
                   <Model
                     data={bodyData}
                     type={bodySide === 'front' ? 'anterior' : 'posterior'}
@@ -631,13 +631,13 @@ export default function Dashboard() {
             </div>
 
             {/* Right Column: Detailed Body Information & Insights */}
-            <div style={styles.bodyDetailsCol}>
+            <div className="dashboard-body-details" style={styles.bodyDetailsCol}>
               <div style={styles.detailsHeader}>
                 <span style={styles.eyebrow}>ANATOMICAL PROFILE & METRICS</span>
                 <h3 style={styles.detailsTitle}>Body Analysis</h3>
               </div>
 
-              <div style={styles.infoCardsGrid}>
+              <div className="dashboard-info-grid" style={styles.infoCardsGrid}>
                 {/* Height & Weight */}
                 <div style={styles.infoCard}>
                   <div style={styles.infoCardLabel}>HEIGHT & WEIGHT</div>
@@ -707,8 +707,8 @@ export default function Dashboard() {
         </div>
 
         {/* Total XP & Rank Progression */}
-        <div style={styles.card}>
-          <div style={styles.cardHeader}>
+        <div className="dashboard-card dashboard-rank-card" style={styles.card}>
+          <div className="dashboard-card-header" style={styles.cardHeader}>
             <div>
               <span style={styles.eyebrow}>OVERALL PROGRESSION</span>
               <div style={styles.totalXpVal}>{totalXp.toLocaleString()} XP</div>
@@ -735,7 +735,7 @@ export default function Dashboard() {
           <span style={styles.sectionMeta}>THIS CYCLE</span>
         </div>
 
-        <div style={styles.muscleGrid}>
+        <div className="dashboard-muscle-grid" style={styles.muscleGrid}>
           {muscleGroups.map((muscle) => {
             const color = getMuscleColor(muscle.xp);
             const mRank = getMuscleRank(muscle.xp);
@@ -779,7 +779,7 @@ export default function Dashboard() {
 
         {/* Selected Muscle Completed Workouts History */}
         {selectedMuscle && (
-          <div style={styles.muscleWorkoutsCard}>
+          <div className="dashboard-muscle-history" style={styles.muscleWorkoutsCard}>
             <div style={styles.muscleWorkoutsHeader}>
               <div>
                 <div style={styles.eyebrow}>COMPLETED WORKOUT HISTORY</div>
@@ -925,7 +925,7 @@ export default function Dashboard() {
 
       {/* Edit Profile Modal */}
       {showProfileModal && (
-        <div style={styles.modalOverlay}>
+        <div className="dashboard-modal-overlay" style={styles.modalOverlay}>
           <div style={styles.modalCard}>
             <div style={styles.modalHeader}>
               <h3 style={styles.modalTitle}>Edit Physical Stats</h3>

@@ -65,7 +65,7 @@ export default function Navbar({ user }) {
       <nav style={styles.nav}>
       <div className="nav-container" style={styles.container}>
         <div className="nav-left" style={styles.left}>
-          <Link to="/dashboard" style={styles.logoWrap}>
+          <Link to="/dashboard" className="logoWrap" style={styles.logoWrap}>
             <span style={styles.logoPulse}>Pulse</span>
             <span style={styles.logoFit}>Fit</span>
           </Link>
@@ -94,7 +94,7 @@ export default function Navbar({ user }) {
           </div>
         </div>
 
-        <div style={styles.right}>
+        <div className="nav-right" style={styles.right}>
           {/* Account Profile Popover Anchor */}
           <div ref={accountRef} style={styles.accountWrapper}>
             <button

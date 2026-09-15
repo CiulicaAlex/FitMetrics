@@ -16,7 +16,7 @@ export function ExerciseMediaPreview({ exerciseName, videoUrl, compact = false, 
 
   if (!videoUrl) {
     return (
-      <div
+      <div className="media-preview media-preview-empty"
         style={{
           minHeight: 180,
           height: 180,
@@ -59,7 +59,7 @@ export function ExerciseMediaPreview({ exerciseName, videoUrl, compact = false, 
   const previewHeight = compact ? 200 : 340;
 
   return (
-    <div
+    <div className={`media-preview${compact ? ' media-preview-compact' : ''}`}
       style={{
         minHeight: previewHeight,
         height: previewHeight,
@@ -77,7 +77,7 @@ export function ExerciseMediaPreview({ exerciseName, videoUrl, compact = false, 
       }}
     >
       {/* Top Header Bar - Not overlapping the motion frames */}
-      <div
+      <div className="media-preview-header"
         style={{
           backgroundColor: '#141418',
           borderBottom: '1px solid #222227',
@@ -97,7 +97,7 @@ export function ExerciseMediaPreview({ exerciseName, videoUrl, compact = false, 
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div className="media-preview-controls" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <button
             onClick={() => setFrame(0)}
             style={{

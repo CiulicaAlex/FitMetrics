@@ -264,9 +264,9 @@ export default function Workouts() {
     <div style={styles.page}>
       <Navbar user={user} />
 
-      <main style={styles.content}>
+      <main className="workouts-content" style={styles.content}>
         {/* Header */}
-        <div style={styles.header}>
+        <div className="workouts-header" style={styles.header}>
           <div>
             <div style={styles.eyebrow}>PULSE FIT / TRAINING</div>
             <h1 style={styles.title}>My Workouts</h1>
@@ -291,7 +291,7 @@ export default function Workouts() {
         ) : (
           <div style={styles.workoutList}>
             {workouts.map((workout) => (
-              <div key={workout.id} style={styles.workoutCard}>
+              <div key={workout.id} className="workout-card" style={styles.workoutCard}>
                 <div style={styles.workoutCardHeader}>
                   <div>
                     <h3 style={styles.workoutName}>{workout.name}</h3>
@@ -308,7 +308,7 @@ export default function Workouts() {
                   ))}
                 </div>
 
-                <div style={styles.cardActions}>
+                <div className="workout-card-actions" style={styles.cardActions}>
                   <button
                     onClick={() => navigate(`/workout-session/${workout.id}`)}
                     style={styles.startButton}
@@ -327,8 +327,8 @@ export default function Workouts() {
           </div>
         )}
 
-        <section style={styles.popularSection}>
-          <div style={styles.popularHeader}>
+        <section className="popular-section" style={styles.popularSection}>
+          <div className="popular-header" style={styles.popularHeader}>
             <div>
               <div style={styles.eyebrow}>NO IDEA?</div>
               <h2 style={styles.popularTitle}>SEARCH FOR POPULAR WORKOUTS</h2>
@@ -338,16 +338,16 @@ export default function Workouts() {
             </div>
           </div>
 
-          <div style={styles.popularGrid}>
+          <div className="popular-grid" style={styles.popularGrid}>
             {POPULAR_WORKOUTS.map((template) => (
-              <article key={template.id} style={styles.popularCard}>
+              <article key={template.id} className="popular-card" style={styles.popularCard}>
                 <div style={styles.popularCardTop}>
                   <span style={styles.popularLabel}>{template.label}</span>
                   <span style={styles.exerciseCount}>{template.exercises.length} EX</span>
                 </div>
                 <h3 style={styles.popularName}>{template.name}</h3>
                 <p style={styles.popularDescription}>{template.description}</p>
-                <div style={styles.popularMeta}>{template.muscleGroups.join('  /  ')}</div>
+                <div className="popular-meta" style={styles.popularMeta}>{template.muscleGroups.join('  /  ')}</div>
                 <div style={styles.popularExerciseList}>
                   {template.exercises.map((exercise) => (
                     <div key={exercise} style={styles.popularExerciseItem}>
@@ -372,8 +372,8 @@ export default function Workouts() {
 
       {/* Editor Modal */}
       {showEditor && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.editorCard}>
+        <div className="workouts-modal-overlay" style={styles.modalOverlay}>
+          <div className="workouts-editor-card" style={styles.editorCard}>
             <div style={styles.modalHeader}>
               <h2 style={styles.modalTitle}>
                 {editingWorkoutId ? 'EDIT WORKOUT' : 'NEW WORKOUT'}
@@ -428,8 +428,9 @@ export default function Workouts() {
 
       {/* Exercise Picker Modal */}
       {showPicker && (
-        <div style={styles.modalOverlay}>
+        <div className="workouts-modal-overlay" style={styles.modalOverlay}>
           <div
+            className="workouts-picker-card"
             style={{
               ...styles.pickerCard,
               maxWidth: previewExercise ? 880 : 580,
