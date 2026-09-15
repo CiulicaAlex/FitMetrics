@@ -78,13 +78,13 @@ function getRankInfo(totalXp) {
 
 // Muscle Tiers with balanced steep thresholds
 const MUSCLE_TIERS = [
-  { name: 'Untrained', minXp: 0, color: '#3f3f46' },
-  { name: 'Developing', minXp: 1200, color: '#22d3ee' },
-  { name: 'Conditioned', minXp: 4000, color: '#22c55e' },
-  { name: 'Strong', minXp: 10000, color: '#eab308' },
-  { name: 'Advanced', minXp: 22000, color: '#f97316' },
-  { name: 'Athletic', minXp: 45000, color: '#ec4899' },
-  { name: 'Peak', minXp: 75000, color: '#10b981' },
+  { name: 'Beginner', minXp: 0, color: '#3f3f46' },
+  { name: 'Novice', minXp: 1200, color: '#22d3ee' },
+  { name: 'Intermediate', minXp: 4000, color: '#22c55e' },
+  { name: 'Advanced', minXp: 10000, color: '#eab308' },
+  { name: 'Expert', minXp: 22000, color: '#f97316' },
+  { name: 'Elite', minXp: 45000, color: '#ec4899' },
+  { name: 'Master', minXp: 75000, color: '#10b981' },
 ];
 
 function getMuscleRank(xp) {
@@ -98,7 +98,7 @@ function getMuscleRank(xp) {
 
 function getMuscleRankName(xp) {
   const idx = Math.min(getMuscleRank(xp) - 1, MUSCLE_TIERS.length - 1);
-  return MUSCLE_TIERS[idx]?.name || 'Peak';
+  return MUSCLE_TIERS[idx]?.name || 'Master';
 }
 
 function getMuscleColor(xp) {
@@ -593,7 +593,7 @@ export default function Dashboard() {
                     data={bodyData}
                     type={bodySide === 'front' ? 'anterior' : 'posterior'}
                     bodyColor="#3f3f46"
-                    highlightedColors={['#22d3ee', '#22c55e', '#eab308', '#f97316', '#ef4444']}
+                    highlightedColors={RANK_TIERS.map((tier) => tier.color)}
                     style={{
                       width: '100%',
                       height: '340px',
@@ -611,17 +611,10 @@ export default function Dashboard() {
 
               {/* Visualizer Legend */}
               <div style={styles.legend}>
-                {[
-                  ['#3f3f46', 'RESTING'],
-                  ['#22d3ee', 'RECRUIT'],
-                  ['#22c55e', 'CONTENDER'],
-                  ['#eab308', 'ENFORCER'],
-                  ['#f97316', 'TITAN'],
-                  ['#ef4444', 'WARLORD+'],
-                ].map(([color, label]) => (
-                  <div key={label} style={styles.legendItem}>
+                {RANK_TIERS.map(({ color, name }) => (
+                  <div key={name} style={styles.legendItem}>
                     <div style={{ ...styles.legendDot, backgroundColor: color }} />
-                    <span style={styles.legendText}>{label}</span>
+                    <span style={styles.legendText}>{name.toUpperCase()}</span>
                   </div>
                 ))}
               </div>
