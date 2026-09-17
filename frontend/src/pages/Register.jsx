@@ -8,16 +8,24 @@ export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [gender, setGender] = useState('');
+  const [gender, setGender] = useState('Male');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [honeypot, setHoneypot] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+
+    // Invisible bot trap
+    if (honeypot) {
+      setLoading(true);
+      setTimeout(() => setLoading(false), 500);
+      return;
+    }
 
     if (!fullName.trim() || !email.trim() || !password || !gender) {
       setError('Please fill in all required fields.');
@@ -62,339 +70,271 @@ export default function Register() {
   };
 
   return (
-    <div style={styles.container}>
-      <div className="auth-header" style={styles.headerWrap}>
-        <h1 style={styles.appTitle}>
-          <span>Pulse</span>
-          <span style={{ color: '#10b981', marginLeft: 4 }}>Fit</span>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '24px',
+      backgroundColor: 'var(--bg-main)',
+      color: 'var(--text-primary)',
+      transition: 'background-color 0.25s ease',
+    }}>
+      {/* Brand Header */}
+      <div style={{ textAlign: 'center', marginBottom: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+        <div style={{
+          width: 54,
+          height: 54,
+          borderRadius: 14,
+          backgroundColor: '#ff2d55',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 8px 20px rgba(255, 45, 85, 0.35)',
+        }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="#ffffff">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
+        </div>
+        <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.3px', margin: 0, color: 'var(--text-primary)' }}>
+          FitMetrics
         </h1>
-        <p style={styles.appSubtitle}>Muscle Tracking and Progress System</p>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
+          Create your Apple Health profile
+        </p>
       </div>
 
-      <div className="auth-card register-card" style={styles.card}>
-        <h2 style={styles.cardTitle}>Create Account</h2>
+      {/* Card */}
+      <div className="ios-card" style={{ width: '100%', maxWidth: 440, borderRadius: 20, padding: '28px 26px' }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, margin: '0 0 16px', color: 'var(--text-primary)' }}>
+          Create Account
+        </h2>
 
-        {error && <div style={styles.errorBox}>{error}</div>}
-        {success && <div style={styles.successBox}>Account created successfully! Redirecting...</div>}
+        {error && (
+          <div style={{
+            backgroundColor: 'rgba(255, 59, 48, 0.12)',
+            color: 'var(--accent-red)',
+            padding: '10px 14px',
+            borderRadius: 10,
+            fontSize: 13,
+            fontWeight: 600,
+            marginBottom: 16,
+          }}>
+            {error}
+          </div>
+        )}
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.field}>
-            <label style={styles.label}>FULL NAME</label>
+        {success && (
+          <div style={{
+            backgroundColor: 'rgba(48, 209, 88, 0.12)',
+            color: 'var(--accent-green)',
+            padding: '10px 14px',
+            borderRadius: 10,
+            fontSize: 13,
+            fontWeight: 600,
+            marginBottom: 16,
+          }}>
+            Account created successfully! Redirecting...
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '0.4px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>
+              FULL NAME
+            </label>
             <input
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder="Your full name"
-              style={styles.input}
+              placeholder="e.g. Alex Morgan"
+              style={{
+                width: '100%',
+                padding: '11px 14px',
+                borderRadius: 12,
+                border: '0.5px solid var(--border-subtle)',
+                backgroundColor: 'var(--bg-input)',
+                color: 'var(--text-primary)',
+                fontSize: 15,
+                outline: 'none',
+              }}
               required
             />
           </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>EMAIL</label>
+          <div>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '0.4px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>
+              EMAIL
+            </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="user@fitmetrics.com"
-              style={styles.input}
+              style={{
+                width: '100%',
+                padding: '11px 14px',
+                borderRadius: 12,
+                border: '0.5px solid var(--border-subtle)',
+                backgroundColor: 'var(--bg-input)',
+                color: 'var(--text-primary)',
+                fontSize: 15,
+                outline: 'none',
+              }}
               required
             />
           </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>PASSWORD</label>
-            <div style={styles.inputWrap}>
+          {/* Gender Segmented Control */}
+          <div>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '0.4px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>
+              GENDER
+            </label>
+            <div className="ios-segmented-control" style={{ width: '100%' }}>
+              {['Male', 'Female', 'Other'].map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setGender(g)}
+                  className={`ios-segment-btn ${gender === g ? 'active' : ''}`}
+                >
+                  {g}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '0.4px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>
+              PASSWORD (MIN 6 CHARS)
+            </label>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                style={styles.inputWithToggle}
+                style={{
+                  width: '100%',
+                  padding: '11px 14px',
+                  paddingRight: 60,
+                  borderRadius: 12,
+                  border: '0.5px solid var(--border-subtle)',
+                  backgroundColor: 'var(--bg-input)',
+                  color: 'var(--text-primary)',
+                  fontSize: 15,
+                  outline: 'none',
+                }}
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                style={styles.toggleBtn}
+                style={{
+                  position: 'absolute',
+                  right: 12,
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
               >
                 {showPassword ? 'HIDE' : 'SHOW'}
               </button>
             </div>
           </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>CONFIRM PASSWORD</label>
-            <div style={styles.inputWrap}>
+          <div>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '0.4px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>
+              CONFIRM PASSWORD
+            </label>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <input
                 type={showConfirmPassword ? 'text' : 'password'}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
-                style={styles.inputWithToggle}
+                style={{
+                  width: '100%',
+                  padding: '11px 14px',
+                  paddingRight: 60,
+                  borderRadius: 12,
+                  border: '0.5px solid var(--border-subtle)',
+                  backgroundColor: 'var(--bg-input)',
+                  color: 'var(--text-primary)',
+                  fontSize: 15,
+                  outline: 'none',
+                }}
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                style={styles.toggleBtn}
+                style={{
+                  position: 'absolute',
+                  right: 12,
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
               >
                 {showConfirmPassword ? 'HIDE' : 'SHOW'}
               </button>
             </div>
           </div>
 
-          <div style={styles.field}>
-            <div style={styles.genderLabelRow}>
-              <label style={styles.label}>GENDER</label>
-              <span style={styles.optionalLabel}>REQUIRED</span>
-            </div>
-            <div style={styles.genderGrid} role="radiogroup" aria-label="Gender">
-              {['MALE', 'FEMALE', 'OTHER'].map((option) => {
-                const selected = gender === option;
-                return (
-                  <label key={option} style={styles.genderChoice}>
-                    <input
-                      type="radio"
-                      name="gender"
-                      value={option}
-                      checked={selected}
-                      onChange={(e) => setGender(e.target.value)}
-                      style={styles.visuallyHidden}
-                      required={option === 'MALE'}
-                    />
-                    <span
-                      style={{
-                        ...styles.genderOption,
-                        ...(selected ? styles.genderOptionSelected : {}),
-                      }}
-                    >
-                      <span>{option}</span>
-                      <span
-                        style={{
-                          ...styles.genderCheck,
-                          ...(selected ? styles.genderCheckSelected : {}),
-                        }}
-                      >
-                        {selected ? '✓' : ''}
-                      </span>
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
+          {/* Invisible spam protection honeypot */}
+          <input
+            type="text"
+            name="website_hp"
+            value={honeypot}
+            onChange={(e) => setHoneypot(e.target.value)}
+            style={{ display: 'none', position: 'absolute', opacity: 0, height: 0, width: 0, zIndex: -1 }}
+            tabIndex="-1"
+            autoComplete="off"
+            aria-hidden="true"
+          />
 
-          <button type="submit" disabled={loading} style={styles.submitButton}>
-            {loading ? 'CREATING ACCOUNT...' : 'SIGN UP'}
+          <button
+            type="submit"
+            disabled={loading}
+            className="ios-button-primary"
+            style={{
+              marginTop: 8,
+              padding: '13px',
+              borderRadius: 12,
+              fontSize: 15,
+              fontWeight: 700,
+              width: '100%',
+            }}
+          >
+            {loading ? 'Creating Account...' : 'Create Account'}
           </button>
         </form>
 
-        <div style={styles.footerLink}>
-          <span>Already have an account? </span>
-          <Link to="/" style={styles.link}>Sign In</Link>
+        <div style={{ textAlign: 'center', marginTop: 18, fontSize: 13, color: 'var(--text-muted)' }}>
+          Already have an account?{' '}
+          <Link to="/" style={{ color: '#007aff', fontWeight: 600, textDecoration: 'none' }}>
+            Sign In
+          </Link>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 14, marginTop: 16, fontSize: 12, color: 'var(--text-muted)' }}>
+          <Link to="/privacy" style={{ color: 'var(--text-muted)', textDecoration: 'none', transition: 'color 0.2s' }}>
+            Privacy Policy
+          </Link>
+          <span style={{ opacity: 0.4 }}>•</span>
+          <Link to="/terms" style={{ color: 'var(--text-muted)', textDecoration: 'none', transition: 'color 0.2s' }}>
+            Terms of Service
+          </Link>
         </div>
       </div>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    minHeight: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '24px',
-    backgroundColor: '#09090b',
-  },
-  headerWrap: {
-    textAlign: 'center',
-    marginBottom: 28,
-  },
-  appTitle: {
-    color: '#ffffff',
-    fontSize: 28,
-    fontWeight: 900,
-    letterSpacing: '2px',
-    marginBottom: 6,
-  },
-  appSubtitle: {
-    color: '#71717a',
-    fontSize: 12,
-    fontWeight: 700,
-    letterSpacing: '0.5px',
-  },
-  card: {
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: '#18181b',
-    border: '1px solid #27272a',
-    borderRadius: 12,
-    padding: '30px 28px',
-  },
-  cardTitle: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: 800,
-    marginBottom: 20,
-  },
-  errorBox: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    border: '1px solid #ef4444',
-    color: '#fca5a5',
-    padding: '10px 14px',
-    borderRadius: 6,
-    fontSize: 12,
-    marginBottom: 16,
-  },
-  successBox: {
-    backgroundColor: 'rgba(34, 197, 94, 0.1)',
-    border: '1px solid #22c55e',
-    color: '#86efac',
-    padding: '10px 14px',
-    borderRadius: 6,
-    fontSize: 12,
-    marginBottom: 16,
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 16,
-  },
-  field: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 6,
-  },
-  genderLabelRow: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  optionalLabel: {
-    color: '#52525b',
-    fontSize: 9,
-    fontWeight: 800,
-    letterSpacing: '0.7px',
-  },
-  genderGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-    gap: 8,
-  },
-  genderChoice: {
-    display: 'block',
-    cursor: 'pointer',
-  },
-  visuallyHidden: {
-    position: 'absolute',
-    opacity: 0,
-    pointerEvents: 'none',
-  },
-  genderOption: {
-    minHeight: 42,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 6,
-    padding: '9px 10px',
-    borderRadius: 6,
-    border: '1px solid #27272a',
-    backgroundColor: '#09090b',
-    color: '#71717a',
-    fontSize: 10,
-    fontWeight: 900,
-    letterSpacing: '0.5px',
-    transition: 'all 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
-  },
-  genderOptionSelected: {
-    borderColor: '#10b981',
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    color: '#ffffff',
-    transform: 'translateY(-1px)',
-    boxShadow: '0 5px 14px rgba(16, 185, 129, 0.16)',
-  },
-  genderCheck: {
-    width: 17,
-    height: 17,
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: '50%',
-    border: '1px solid #3f3f46',
-    color: '#09090b',
-    fontSize: 11,
-    flexShrink: 0,
-    transition: 'all 0.2s ease',
-  },
-  genderCheckSelected: {
-    borderColor: '#10b981',
-    backgroundColor: '#10b981',
-    animation: 'genderCheckPop 220ms ease-out',
-  },
-  label: {
-    color: '#a1a1aa',
-    fontSize: 10,
-    fontWeight: 800,
-    letterSpacing: '1px',
-  },
-  input: {
-    backgroundColor: '#09090b',
-    border: '1px solid #27272a',
-    borderRadius: 6,
-    color: '#ffffff',
-    padding: '12px 14px',
-    fontSize: 14,
-    outline: 'none',
-  },
-  inputWrap: {
-    position: 'relative',
-    display: 'flex',
-    alignItems: 'center',
-  },
-  inputWithToggle: {
-    width: '100%',
-    backgroundColor: '#09090b',
-    border: '1px solid #27272a',
-    borderRadius: 6,
-    color: '#ffffff',
-    padding: '12px 64px 12px 14px',
-    fontSize: 14,
-    outline: 'none',
-  },
-  toggleBtn: {
-    position: 'absolute',
-    right: 10,
-    background: 'none',
-    border: 'none',
-    color: '#a1a1aa',
-    fontSize: 10,
-    fontWeight: 800,
-    letterSpacing: '0.8px',
-    padding: '4px 6px',
-  },
-  submitButton: {
-    height: 48,
-    backgroundColor: '#10b981',
-    color: '#ffffff',
-    borderRadius: 6,
-    fontWeight: 900,
-    fontSize: 13,
-    letterSpacing: '1px',
-    marginTop: 8,
-    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
-  },
-  footerLink: {
-    marginTop: 22,
-    textAlign: 'center',
-    color: '#71717a',
-    fontSize: 12,
-  },
-  link: {
-    color: '#ffffff',
-    fontWeight: 800,
-    marginLeft: 4,
-  },
-};

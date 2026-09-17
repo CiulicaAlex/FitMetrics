@@ -1,0 +1,13 @@
+# FitMetrics Robots Exclusion File
+User-agent: *
+Allow: /
+Allow: /register
+Allow: /privacy
+Allow: /terms
+Disallow: /api/
+Disallow: /verify-action
+Disallow: /reset-password
+Disallow: /workout-session/
+
+# Host & Sitemap
+Sitemap: https://fitmetrics.app/sitemap.xml

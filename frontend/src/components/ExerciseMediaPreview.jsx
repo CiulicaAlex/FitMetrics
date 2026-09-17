@@ -1,65 +1,80 @@
 import React, { useEffect, useState } from 'react';
 
-export function ExerciseMediaPreview({ exerciseName, videoUrl, compact = false, onClose, style }) {
+export function ExerciseMediaPreview({ exercise, exerciseName, videoUrl, compact = false, onClose, style }) {
   const [frame, setFrame] = useState(0);
+
+  const name = exerciseName || exercise?.name || exercise?.exerciseName || 'Exercise';
+  const url = videoUrl || exercise?.videoUrl || exercise?.video || exercise?.gifUrl || exercise?.url || '';
+
+  const isGif = url.toLowerCase().includes('.gif');
 
   useEffect(() => {
     setFrame(0);
-    if (!videoUrl) return;
+    if (!url || isGif) return;
 
     const interval = setInterval(() => {
       setFrame((current) => (current === 0 ? 1 : 0));
     }, 1200);
 
     return () => clearInterval(interval);
-  }, [videoUrl]);
+  }, [url, isGif]);
 
-  if (!videoUrl) {
+  if (!url) {
     return (
-      <div className="media-preview media-preview-empty"
+      <div
+        className="media-preview media-preview-empty"
         style={{
-          minHeight: 180,
-          height: 180,
+          minHeight: compact ? 150 : 200,
+          height: compact ? 150 : 200,
           flexShrink: 0,
           backgroundColor: '#121216',
-          border: '1px solid #27272a',
-          borderRadius: 8,
+          border: '0.5px solid var(--border-subtle)',
+          borderRadius: 14,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#71717a',
+          color: 'var(--text-muted)',
           position: 'relative',
+          padding: 16,
           ...style,
         }}
       >
         {onClose && (
           <button
+            type="button"
             onClick={onClose}
             style={{
               position: 'absolute',
-              top: 8,
-              right: 10,
-              color: '#71717a',
+              top: 10,
+              right: 12,
+              color: 'var(--text-muted)',
               fontSize: 14,
               cursor: 'pointer',
+              background: 'none',
+              border: 'none',
             }}
             title="Close"
           >
             ✕
           </button>
         )}
-        <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.8px' }}>NO MEDIA CONFIGURED</div>
-        <div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 6 }}>{exerciseName}</div>
+        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.8px', color: 'var(--text-muted)' }}>
+          NO MEDIA CONFIGURED
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4, fontWeight: 600 }}>
+          {name}
+        </div>
       </div>
     );
   }
 
-  const frameUrl = videoUrl.replace('/0.jpg', `/${frame}.jpg`);
-  const previewHeight = compact ? 200 : 340;
+  const frameUrl = url.includes('/0.jpg') ? url.replace('/0.jpg', `/${frame}.jpg`) : url;
+  const previewHeight = compact ? 220 : 320;
 
   return (
-    <div className={`media-preview${compact ? ' media-preview-compact' : ''}`}
+    <div
+      className={`media-preview${compact ? ' media-preview-compact' : ''}`}
       style={{
         minHeight: previewHeight,
         height: previewHeight,
@@ -67,82 +82,114 @@ export function ExerciseMediaPreview({ exerciseName, videoUrl, compact = false, 
         width: '100%',
         maxWidth: '100%',
         boxSizing: 'border-box',
-        backgroundColor: '#0d0d11',
-        border: '1px solid #27272a',
-        borderRadius: 10,
+        backgroundColor: '#000000',
+        border: '0.5px solid var(--border-subtle)',
+        borderRadius: 16,
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
+        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)',
         ...style,
       }}
     >
-      {/* Top Header Bar - Not overlapping the motion frames */}
-      <div className="media-preview-header"
+      {/* Top Header Bar */}
+      <div
+        className="media-preview-header"
         style={{
-          backgroundColor: '#141418',
-          borderBottom: '1px solid #222227',
-          padding: '8px 14px',
+          backgroundColor: '#161618',
+          borderBottom: '0.5px solid rgba(255, 255, 255, 0.08)',
+          padding: '8px 12px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexShrink: 0,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ color: '#ffffff', fontSize: 11, fontWeight: 900, letterSpacing: '0.8px' }}>
-            {exerciseName?.toUpperCase()}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden' }}>
+          <span
+            style={{
+              color: '#ffffff',
+              fontSize: 11,
+              fontWeight: 800,
+              letterSpacing: '0.5px',
+              textTransform: 'uppercase',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {name}
           </span>
-          <span style={{ color: '#71717a', fontSize: 10, fontWeight: 700 }}>
-            / MOTION DEMO
+          <span style={{ color: '#8e8e93', fontSize: 10, fontWeight: 600, flexShrink: 0 }}>
+            • DEMO
           </span>
         </div>
 
-        <div className="media-preview-controls" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <button
-            onClick={() => setFrame(0)}
-            style={{
-              backgroundColor: frame === 0 ? '#ffffff' : '#1f1f25',
-              color: frame === 0 ? '#09090b' : '#a1a1aa',
-              border: '1px solid',
-              borderColor: frame === 0 ? '#ffffff' : '#27272a',
-              borderRadius: 4,
-              padding: '3px 8px',
-              fontSize: 9,
-              fontWeight: 800,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            FRAME 1
-          </button>
-          <button
-            onClick={() => setFrame(1)}
-            style={{
-              backgroundColor: frame === 1 ? '#ffffff' : '#1f1f25',
-              color: frame === 1 ? '#09090b' : '#a1a1aa',
-              border: '1px solid',
-              borderColor: frame === 1 ? '#ffffff' : '#27272a',
-              borderRadius: 4,
-              padding: '3px 8px',
-              fontSize: 9,
-              fontWeight: 800,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            FRAME 2
-          </button>
+        <div className="media-preview-controls" style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          {isGif ? (
+            <span
+              style={{
+                backgroundColor: 'rgba(48, 209, 88, 0.18)',
+                color: 'var(--accent-green)',
+                border: '1px solid rgba(48, 209, 88, 0.35)',
+                borderRadius: 6,
+                padding: '2px 8px',
+                fontSize: 10,
+                fontWeight: 800,
+                letterSpacing: '0.4px',
+              }}
+            >
+              ANIMATED GIF
+            </span>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setFrame(0)}
+                style={{
+                  backgroundColor: frame === 0 ? '#ff2d55' : 'rgba(255, 255, 255, 0.1)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '2px 8px',
+                  fontSize: 9,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                F1
+              </button>
+              <button
+                type="button"
+                onClick={() => setFrame(1)}
+                style={{
+                  backgroundColor: frame === 1 ? '#ff2d55' : 'rgba(255, 255, 255, 0.1)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '2px 8px',
+                  fontSize: 9,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                F2
+              </button>
+            </>
+          )}
 
           {onClose && (
             <button
+              type="button"
               onClick={onClose}
               style={{
-                color: '#71717a',
-                fontSize: 14,
-                marginLeft: 6,
+                color: '#8e8e93',
+                fontSize: 13,
+                marginLeft: 4,
                 padding: '2px 6px',
                 cursor: 'pointer',
-                borderRadius: 4,
+                background: 'none',
+                border: 'none',
                 display: 'flex',
                 alignItems: 'center',
               }}
@@ -161,20 +208,27 @@ export function ExerciseMediaPreview({ exerciseName, videoUrl, compact = false, 
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#09090b',
-          padding: 8,
+          backgroundColor: '#000000',
+          padding: 6,
           overflow: 'hidden',
         }}
       >
         <img
           key={frameUrl}
           src={frameUrl}
-          alt={exerciseName}
+          alt={`${name} exercise demonstration animation`}
+          loading="lazy"
+          decoding="async"
+          onError={(e) => {
+            if (frameUrl.includes('/1.jpg')) {
+              e.target.src = url;
+            }
+          }}
           style={{
             maxHeight: '100%',
             maxWidth: '100%',
             objectFit: 'contain',
-            borderRadius: 6,
+            borderRadius: 8,
             display: 'block',
           }}
         />

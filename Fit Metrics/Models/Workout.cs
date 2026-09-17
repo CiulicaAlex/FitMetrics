@@ -1,6 +1,6 @@
 namespace Fit_Metrics.Models
 {
-  public class Workout
+  public class Workout : IUserOwnedEntity
   {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;

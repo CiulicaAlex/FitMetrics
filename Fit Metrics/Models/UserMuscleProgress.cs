@@ -2,7 +2,7 @@ using System.Reflection.Metadata.Ecma335;
 
 namespace Fit_Metrics.Models
 {
-  public class UserMuscleProgress
+  public class UserMuscleProgress : IUserOwnedEntity
   {
     public int Id { get; set; }
     public int UserId { get; set; }

@@ -41,13 +41,13 @@ Content-Type: application/json
   "videoUrl": ""
 }
 ###
-# Public-domain exercise images. Each exercise has matching 0.jpg and 1.jpg frames.
+# Public-domain exercise animations from JahelCuadrado/ExerciseGymGifsDB
 PUT {{URL}}/api/exercises/12
 Content-Type: application/json
 {
   "name": "Bench Press",
   "muscleGroup": "Chest",
-  "videoUrl": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Bench_Press_-_Medium_Grip/0.jpg"
+  "videoUrl": "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/pectorals/barbell-bench-press.gif"
 }
 ###
 PUT {{URL}}/api/exercises/13
@@ -55,7 +55,7 @@ Content-Type: application/json
 {
   "name": "Crunch",
   "muscleGroup": "Abs",
-  "videoUrl": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Crunch/0.jpg"
+  "videoUrl": "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/abs/crunch-floor.gif"
 }
 ###
 PUT {{URL}}/api/exercises/14
@@ -63,7 +63,7 @@ Content-Type: application/json
 {
   "name": "Bicep Curl",
   "muscleGroup": "Biceps",
-  "videoUrl": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Curl/0.jpg"
+  "videoUrl": "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/biceps/barbell-curl.gif"
 }
 ###
 PUT {{URL}}/api/exercises/15
@@ -71,7 +71,7 @@ Content-Type: application/json
 {
   "name": "Barbell Squat",
   "muscleGroup": "Legs",
-  "videoUrl": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Squat/0.jpg"
+  "videoUrl": "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/glutes/barbell-high-bar-squat.gif"
 }
 ###
 PUT {{URL}}/api/exercises/16
@@ -79,5 +79,6 @@ Content-Type: application/json
 {
   "name": "Deadlift",
   "muscleGroup": "Back",
-  "videoUrl": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Deadlift/0.jpg"
+  "videoUrl": "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/glutes/barbell-deadlift.gif"
 }
+

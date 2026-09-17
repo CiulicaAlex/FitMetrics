@@ -1,5 +1,6 @@
 using Fit_Metrics.DTOs;
 using Fit_Metrics.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +8,7 @@ using System.Security.Claims;
 
 namespace Fit_Metrics.Controllers
 {
+  [Authorize(AuthenticationSchemes = "CookieAuth")]
   [Route("api/[controller]")]
   [ApiController]
   public class WorkoutsController : ControllerBase

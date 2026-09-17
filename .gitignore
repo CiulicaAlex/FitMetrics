@@ -14,3 +14,8 @@ build-*/
 .nuget/
 .npm-cache/
 out/
+.env
+.env.*
+*.local
+appsettings.*.local.json
+secrets.json

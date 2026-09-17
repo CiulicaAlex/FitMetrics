@@ -1,12 +1,15 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { fetchApi } from '../api';
+import { ThemeToggle } from '../context/ThemeContext';
 
 export default function Navbar({ user }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteEmailSent, setDeleteEmailSent] = useState(false);
+  const [deleteDevUrl, setDeleteDevUrl] = useState(null);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
   const accountRef = useRef(null);
@@ -20,18 +23,26 @@ export default function Navbar({ user }) {
     navigate('/', { replace: true });
   };
 
-  const handleDeleteAccount = async () => {
+  const handleRequestDeleteEmail = async () => {
     setDeletingAccount(true);
     setDeleteError(null);
 
     try {
-      const response = await fetchApi('/auth/account', { method: 'DELETE' });
+      const response = await fetchApi('/auth/request-action-confirmation', {
+        method: 'POST',
+        body: JSON.stringify({ actionType: 'DELETE_ACCOUNT' }),
+      });
+      const data = await response.json();
+
       if (!response.ok) {
-        setDeleteError('Could not delete your account. Please try again.');
+        setDeleteError(data.message || 'Could not send verification email. Please try again.');
         return;
       }
 
-      navigate('/', { replace: true });
+      setDeleteEmailSent(true);
+      if (data.devUrl) {
+        setDeleteDevUrl(data.devUrl);
+      }
     } catch {
       setDeleteError('Could not connect to the server. Please try again.');
     } finally {
@@ -62,145 +73,196 @@ export default function Navbar({ user }) {
 
   return (
     <>
-      <nav style={styles.nav}>
-      <div className="nav-container" style={styles.container}>
-        <div className="nav-left" style={styles.left}>
-          <Link to="/dashboard" className="logoWrap" style={styles.logoWrap}>
-            <span style={styles.logoPulse}>Pulse</span>
-            <span style={styles.logoFit}>Fit</span>
-          </Link>
-
-          <div className="nav-links" style={styles.links}>
-            <Link
-              to="/dashboard"
-              className="nav-link"
-              style={{
-                ...styles.navLink,
-                ...(location.pathname === '/dashboard' ? styles.navLinkActive : {}),
-              }}
-            >
-              Dashboard
-            </Link>
-            <Link
-              to="/workouts"
-              className="nav-link"
-              style={{
-                ...styles.navLink,
-                ...(location.pathname.startsWith('/workout') ? styles.navLinkActive : {}),
-              }}
-            >
-              Workouts
+      <header style={styles.nav}>
+        <div className="nav-container" style={styles.container}>
+          {/* Left: Brand / Large Title Area */}
+          <div className="nav-left" style={styles.left}>
+            <Link to="/dashboard" style={styles.logoWrap}>
+              <div style={styles.appIconSquare}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                </svg>
+              </div>
+              <span style={styles.logoTitle}>FitMetrics</span>
             </Link>
           </div>
-        </div>
 
-        <div className="nav-right" style={styles.right}>
-          {/* Account Profile Popover Anchor */}
-          <div ref={accountRef} style={styles.accountWrapper}>
-            <button
-              onClick={() => setShowAccountMenu((prev) => !prev)}
-              style={{
-                ...styles.avatarBtn,
-                borderColor: showAccountMenu ? '#ffffff' : '#10b981',
-              }}
-              title="Click to view account details"
-              aria-label="Account details"
-            >
-              {initial}
-            </button>
 
-            {showAccountMenu && (
-              <div style={styles.accountDropdown}>
-                <div style={styles.dropdownHeader}>
-                  <div style={styles.avatarMini}>{initial}</div>
-                  <div style={styles.headerInfo}>
-                    <div style={styles.userName}>{fullName}</div>
-                    <div style={styles.userEmail}>{email}</div>
+
+          {/* Right Actions: Theme & Apple ID Avatar */}
+          <div className="nav-right" style={styles.right}>
+            <ThemeToggle />
+
+            {/* Profile Popover Anchor */}
+            <div ref={accountRef} style={styles.accountWrapper}>
+              <button
+                type="button"
+                onClick={() => setShowAccountMenu((prev) => !prev)}
+                style={styles.avatarBtn}
+                title="Apple ID & Profile"
+                aria-label="Apple ID & Profile"
+              >
+                {initial}
+              </button>
+
+              {/* Apple ID Style Modal / Popover */}
+              {showAccountMenu && (
+                <div style={styles.accountDropdown}>
+                  <div style={styles.dropdownHeader}>
+                    <div style={styles.avatarBig}>{initial}</div>
+                    <div style={styles.headerInfo}>
+                      <div style={styles.userName}>{fullName}</div>
+                      <div style={styles.userEmail}>{email}</div>
+                    </div>
+                  </div>
+
+                  <div style={styles.iosListGroup}>
+                    <div style={styles.detailRow}>
+                      <span style={styles.detailLabel}>Account ID</span>
+                      <span style={styles.detailValue}>#{userId}</span>
+                    </div>
+
+                    <div style={styles.detailRow}>
+                      <span style={styles.detailLabel}>Biological Gender</span>
+                      <span style={styles.detailValue}>{gender}</span>
+                    </div>
+
+                    {(user?.height || user?.weight) && (
+                      <div style={styles.detailRow}>
+                        <span style={styles.detailLabel}>Vitals</span>
+                        <span style={styles.detailValue}>
+                          {user.height || 180} cm • {user.weight || 75} kg
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={styles.actionsStack}>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      style={styles.iosButtonAction}
+                    >
+                      Sign Out
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAccountMenu(false);
+                        setShowDeleteConfirm(true);
+                      }}
+                      style={styles.deleteAccountBtn}
+                    >
+                      Delete Account...
+                    </button>
                   </div>
                 </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </header>
 
-                <div style={styles.dropdownDivider} />
-
-                <div style={styles.detailRow}>
-                  <span style={styles.detailLabel}>FULL NAME</span>
-                  <span style={styles.detailValue}>{fullName}</span>
+      {/* iOS Destructive Confirmation Sheet: Email Verification Required */}
+      {showDeleteConfirm && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.confirmModal}>
+            {!deleteEmailSent ? (
+              <>
+                <div style={styles.confirmIcon}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                  </svg>
                 </div>
+                <h3 style={styles.confirmTitle}>Delete Account Verification</h3>
+                <p style={styles.confirmText}>
+                  For your safety, account deletion requires email verification. We will dispatch an authorization link to <strong style={{ color: 'var(--text-primary)' }}>{email}</strong>.
+                </p>
 
-                <div style={styles.detailRow}>
-                  <span style={styles.detailLabel}>EMAIL ADDRESS</span>
-                  <span style={styles.detailValue}>{email}</span>
+                {deleteError && <div style={styles.confirmError}>{deleteError}</div>}
+
+                <div style={styles.confirmActions}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDeleteConfirm(false);
+                      setDeleteEmailSent(false);
+                      setDeleteDevUrl(null);
+                      setDeleteError(null);
+                    }}
+                    style={styles.cancelBtn}
+                    disabled={deletingAccount}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRequestDeleteEmail}
+                    style={styles.confirmDeleteBtn}
+                    disabled={deletingAccount}
+                  >
+                    {deletingAccount ? 'Sending Email...' : 'Send Deletion Email'}
+                  </button>
                 </div>
-
-                <div style={styles.detailRow}>
-                  <span style={styles.detailLabel}>GENDER</span>
-                  <span style={styles.detailValue}>{gender}</span>
+              </>
+            ) : (
+              <>
+                <div style={{
+                  ...styles.confirmIcon,
+                  backgroundColor: 'rgba(48, 209, 88, 0.12)',
+                  color: 'var(--accent-green)',
+                }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
                 </div>
+                <h3 style={styles.confirmTitle}>Deletion Email Dispatched</h3>
+                <p style={styles.confirmText}>
+                  A confirmation link was sent to <strong style={{ color: 'var(--text-primary)' }}>{email}</strong>. Please check your inbox and click the button within 30 minutes to confirm permanent deletion.
+                </p>
 
-                <div style={styles.detailRow}>
-                  <span style={styles.detailLabel}>ACCOUNT ID</span>
-                  <span style={styles.detailValueId}>#{userId}</span>
-                </div>
-
-                {(user?.height || user?.weight) && (
-                  <div style={styles.detailRow}>
-                    <span style={styles.detailLabel}>STATS</span>
-                    <span style={styles.detailValue}>
-                      {user.height || 180} cm • {user.weight || 75} kg
-                    </span>
+                {deleteDevUrl && (
+                  <div style={{ marginBottom: 14 }}>
+                    <a
+                      href={deleteDevUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'block',
+                        padding: '10px 14px',
+                        borderRadius: 12,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: 'var(--accent-blue)',
+                        textDecoration: 'none',
+                        border: '1px dashed var(--accent-blue)',
+                      }}
+                    >
+                      Open Verification Link (Dev Mode)
+                    </a>
                   </div>
                 )}
 
-                <div style={styles.dropdownFooter}>
-                  <span style={styles.statusDot} />
-                  <span style={styles.statusText}>Active Account</span>
+                <div style={styles.confirmActions}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDeleteConfirm(false);
+                      setDeleteEmailSent(false);
+                      setDeleteDevUrl(null);
+                      setDeleteError(null);
+                    }}
+                    className="ios-button-primary"
+                    style={{ width: '100%', padding: '12px', borderRadius: 12, fontSize: 14, fontWeight: 700 }}
+                  >
+                    Done
+                  </button>
                 </div>
-
-                <button
-                  onClick={() => {
-                    setShowAccountMenu(false);
-                    setDeleteError(null);
-                    setShowDeleteConfirm(true);
-                  }}
-                  style={styles.deleteAccountBtn}
-                >
-                  Delete Account
-                </button>
-              </div>
+              </>
             )}
-          </div>
-
-          <button onClick={handleLogout} style={styles.logoutBtn}>
-            Logout
-          </button>
-        </div>
-      </div>
-      </nav>
-
-      {showDeleteConfirm && (
-        <div style={styles.modalOverlay} role="presentation">
-          <div style={styles.confirmModal} role="dialog" aria-modal="true" aria-labelledby="delete-account-title">
-            <div style={styles.confirmIcon}>!</div>
-            <h2 id="delete-account-title" style={styles.confirmTitle}>Delete account?</h2>
-            <p style={styles.confirmText}>
-              This permanently deletes your account, workouts, progress, and workout history. This action cannot be undone.
-            </p>
-            {deleteError && <div style={styles.confirmError}>{deleteError}</div>}
-            <div style={styles.confirmActions}>
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                disabled={deletingAccount}
-                style={styles.cancelBtn}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteAccount}
-                disabled={deletingAccount}
-                style={styles.confirmDeleteBtn}
-              >
-                {deletingAccount ? 'DELETING...' : 'DELETE ACCOUNT'}
-              </button>
-            </div>
           </div>
         </div>
       )}
@@ -210,264 +272,233 @@ export default function Navbar({ user }) {
 
 const styles = {
   nav: {
-    backgroundColor: '#0e0e11',
-    borderBottom: '1px solid #1f1f23',
     position: 'sticky',
     top: 0,
-    zIndex: 50,
+    zIndex: 100,
+    backgroundColor: 'var(--tabbar-bg)',
+    backdropFilter: 'saturate(180%) blur(20px)',
+    WebkitBackdropFilter: 'saturate(180%) blur(20px)',
+    borderBottom: '0.5px solid var(--border-subtle)',
+    transition: 'background-color 0.25s ease, border-color 0.25s ease',
   },
   container: {
-    maxWidth: 1100,
-    margin: '0 auto',
-    padding: '14px 20px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-    minWidth: 0,
+    maxWidth: 1080,
     width: '100%',
     boxSizing: 'border-box',
+    margin: '0 auto',
+    padding: '10px 20px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
   },
   left: {
     display: 'flex',
     alignItems: 'center',
-    gap: 24,
-    minWidth: 0,
-    flex: 1,
-    overflow: 'hidden',
+    flex: '0 0 auto',
   },
   logoWrap: {
     display: 'flex',
     alignItems: 'center',
-    fontSize: 18,
-    fontWeight: 900,
-    letterSpacing: '0.5px',
+    gap: 10,
     textDecoration: 'none',
-    flexShrink: 0,
   },
-  logoPulse: {
+  appIconSquare: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: '#ff2d55',
     color: '#ffffff',
-  },
-  logoFit: {
-    color: '#10b981',
-    marginLeft: 3,
-  },
-  links: {
     display: 'flex',
     alignItems: 'center',
-    gap: 20,
-    flexShrink: 0,
+    justifyContent: 'center',
+    boxShadow: '0 2px 8px rgba(255, 45, 85, 0.35)',
   },
-  navLink: {
-    color: '#71717a',
-    fontSize: 14,
+  logoTitle: {
+    fontSize: 18,
     fontWeight: 700,
-    textDecoration: 'none',
-    transition: 'color 0.15s ease',
-    padding: '4px 0',
-    whiteSpace: 'nowrap',
-  },
-  navLinkActive: {
-    color: '#ffffff',
-    borderBottom: '2px solid #10b981',
+    letterSpacing: '-0.4px',
+    color: 'var(--text-primary)',
   },
   right: {
     display: 'flex',
     alignItems: 'center',
-    gap: 10,
-    flexShrink: 0,
+    gap: 12,
   },
   accountWrapper: {
     position: 'relative',
-    display: 'flex',
-    alignItems: 'center',
   },
   avatarBtn: {
     width: 36,
     height: 36,
     borderRadius: '50%',
-    backgroundColor: '#10b981',
-    color: '#09090b',
-    fontWeight: 900,
-    fontSize: 15,
+    backgroundColor: '#007aff',
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: 700,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    border: '2px solid #10b981',
+    border: 'none',
     cursor: 'pointer',
-    outline: 'none',
-    transition: 'all 0.15s ease',
+    boxShadow: '0 2px 8px rgba(0, 122, 255, 0.3)',
+    transition: 'transform 0.15s ease',
   },
   accountDropdown: {
     position: 'absolute',
     top: 'calc(100% + 10px)',
     right: 0,
-    width: 280,
-    backgroundColor: '#121216',
-    border: '1px solid #27272a',
-    borderRadius: 10,
+    width: 290,
+    backgroundColor: 'var(--bg-card)',
+    border: '0.5px solid var(--border-subtle)',
+    borderRadius: 18,
     padding: '16px',
-    boxShadow: '0 16px 36px rgba(0, 0, 0, 0.75)',
-    zIndex: 100,
+    boxShadow: 'var(--shadow-floating)',
+    zIndex: 110,
     display: 'flex',
     flexDirection: 'column',
-    gap: 12,
+    gap: 14,
+    backdropFilter: 'saturate(180%) blur(20px)',
+    WebkitBackdropFilter: 'saturate(180%) blur(20px)',
   },
   dropdownHeader: {
     display: 'flex',
     alignItems: 'center',
     gap: 12,
   },
-  avatarMini: {
-    width: 38,
-    height: 38,
+  avatarBig: {
+    width: 44,
+    height: 44,
     borderRadius: '50%',
-    backgroundColor: '#18181c',
-    border: '1.5px solid #10b981',
-    color: '#10b981',
-    fontWeight: 900,
-    fontSize: 16,
+    backgroundColor: '#007aff',
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: 700,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
   headerInfo: {
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
+    minWidth: 0,
   },
   userName: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: 800,
-    whiteSpace: 'nowrap',
+    fontSize: 15,
+    fontWeight: 600,
+    color: 'var(--text-primary)',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
   },
   userEmail: {
-    color: '#71717a',
-    fontSize: 11,
-    fontWeight: 600,
-    whiteSpace: 'nowrap',
+    fontSize: 12,
+    color: 'var(--text-muted)',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
     marginTop: 2,
   },
-  dropdownDivider: {
-    height: 1,
-    backgroundColor: '#1f1f25',
-    margin: '2px 0',
+  iosListGroup: {
+    backgroundColor: 'var(--bg-main)',
+    borderRadius: 12,
+    border: '0.5px solid var(--border-subtle)',
+    overflow: 'hidden',
   },
   detailRow: {
     display: 'flex',
-    flexDirection: 'column',
-    gap: 3,
-    backgroundColor: '#0c0c0f',
-    border: '1px solid #1c1c22',
-    borderRadius: 6,
-    padding: '8px 10px',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '10px 12px',
+    borderBottom: '0.5px solid var(--border-subtle)',
+    fontSize: 13,
   },
   detailLabel: {
-    color: '#71717a',
-    fontSize: 9,
-    fontWeight: 800,
-    letterSpacing: '0.6px',
+    color: 'var(--text-secondary)',
+    fontWeight: 500,
   },
   detailValue: {
-    color: '#e4e4e7',
-    fontSize: 12,
-    fontWeight: 700,
-    wordBreak: 'break-all',
+    color: 'var(--text-primary)',
+    fontWeight: 600,
   },
-  detailValueId: {
-    color: '#10b981',
-    fontSize: 12,
-    fontWeight: 900,
-    letterSpacing: '0.5px',
-  },
-  dropdownFooter: {
+  actionsStack: {
     display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    paddingTop: 4,
+    flexDirection: 'column',
+    gap: 8,
   },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: '50%',
-    backgroundColor: '#10b981',
-  },
-  statusText: {
-    color: '#a1a1aa',
-    fontSize: 10,
-    fontWeight: 700,
-    letterSpacing: '0.4px',
+  iosButtonAction: {
+    width: '100%',
+    padding: '10px',
+    borderRadius: 10,
+    backgroundColor: 'var(--bg-main)',
+    border: '0.5px solid var(--border-subtle)',
+    color: '#007aff',
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: 'pointer',
+    textAlign: 'center',
   },
   deleteAccountBtn: {
-    border: '1px solid #7f1d1d',
-    borderRadius: 6,
-    backgroundColor: 'rgba(127, 29, 29, 0.16)',
-    color: '#fca5a5',
-    fontSize: 10,
-    fontWeight: 800,
-    letterSpacing: '0.5px',
-    padding: '8px 10px',
+    width: '100%',
+    padding: '8px',
+    borderRadius: 8,
+    backgroundColor: 'transparent',
+    border: 'none',
+    color: '#ff3b30',
+    fontSize: 12,
+    fontWeight: 500,
     cursor: 'pointer',
-    textAlign: 'left',
+    textAlign: 'center',
   },
   modalOverlay: {
     position: 'fixed',
     inset: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.78)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backdropFilter: 'blur(10px)',
+    WebkitBackdropFilter: 'blur(10px)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
-    zIndex: 200,
+    zIndex: 999,
   },
   confirmModal: {
     width: '100%',
-    maxWidth: 400,
-    backgroundColor: '#18181b',
-    border: '1px solid #3f3f46',
-    borderRadius: 12,
-    padding: 24,
-    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.7)',
+    maxWidth: 320,
+    backgroundColor: 'var(--bg-card)',
+    borderRadius: 16,
+    padding: 20,
+    boxShadow: 'var(--shadow-floating)',
     textAlign: 'center',
   },
   confirmIcon: {
-    width: 34,
-    height: 34,
-    margin: '0 auto 12px',
+    width: 36,
+    height: 36,
     borderRadius: '50%',
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    border: '1px solid #ef4444',
-    color: '#fca5a5',
+    backgroundColor: 'rgba(255, 59, 48, 0.12)',
+    color: '#ff3b30',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontWeight: 900,
+    fontSize: 18,
+    fontWeight: 800,
+    margin: '0 auto 12px',
   },
   confirmTitle: {
-    color: '#ffffff',
-    fontSize: 18,
-    margin: '0 0 10px',
+    fontSize: 17,
+    fontWeight: 700,
+    color: 'var(--text-primary)',
+    margin: '0 0 6px',
   },
   confirmText: {
-    color: '#a1a1aa',
-    fontSize: 12,
-    lineHeight: 1.6,
+    fontSize: 13,
+    color: 'var(--text-secondary)',
+    lineHeight: 1.4,
     margin: '0 0 18px',
   },
   confirmError: {
-    color: '#fca5a5',
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    border: '1px solid #7f1d1d',
-    borderRadius: 6,
-    fontSize: 11,
-    padding: '8px 10px',
-    marginBottom: 14,
+    color: '#ff3b30',
+    fontSize: 12,
+    marginBottom: 12,
   },
   confirmActions: {
     display: 'flex',
@@ -475,36 +506,24 @@ const styles = {
   },
   cancelBtn: {
     flex: 1,
-    height: 42,
-    border: '1px solid #3f3f46',
-    borderRadius: 6,
-    backgroundColor: '#27272a',
-    color: '#e4e4e7',
-    fontWeight: 800,
-    fontSize: 11,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: 'var(--bg-card-subtle)',
+    border: '0.5px solid var(--border-subtle)',
+    color: 'var(--text-primary)',
+    fontWeight: 600,
+    fontSize: 13,
     cursor: 'pointer',
   },
   confirmDeleteBtn: {
     flex: 1,
-    height: 42,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#ff3b30',
     border: 'none',
-    borderRadius: 6,
-    backgroundColor: '#dc2626',
     color: '#ffffff',
-    fontWeight: 900,
-    fontSize: 11,
+    fontWeight: 600,
+    fontSize: 13,
     cursor: 'pointer',
-  },
-  logoutBtn: {
-    border: '1px solid #27272a',
-    borderRadius: 6,
-    backgroundColor: '#18181b',
-    color: '#a1a1aa',
-    fontSize: 11,
-    fontWeight: 800,
-    letterSpacing: '0.5px',
-    padding: '7px 12px',
-    whiteSpace: 'nowrap',
-    flexShrink: 0,
   },
 };

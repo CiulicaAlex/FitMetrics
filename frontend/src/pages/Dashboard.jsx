@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Model from 'react-body-highlighter';
 import Navbar from '../components/Navbar';
 import { fetchApi } from '../api';
+import { useTheme } from '../context/ThemeContext';
 
 const initialMuscleGroups = [
   { name: 'CHEST', xp: 0, slugs: ['chest'] },
@@ -22,15 +23,15 @@ const initialMuscleGroups = [
   { name: 'NECK', xp: 0, slugs: ['neck'] },
 ];
 
-// Progression ranks with simple, realistic fitness levels.
+// Progression ranks matching Apple Fitness tier styling
 const RANK_TIERS = [
-  { name: 'Beginner', minXp: 0, color: '#71717a' },
-  { name: 'Novice', minXp: 5000, color: '#22d3ee' },
-  { name: 'Intermediate', minXp: 15000, color: '#22c55e' },
-  { name: 'Advanced', minXp: 35000, color: '#eab308' },
-  { name: 'Expert', minXp: 75000, color: '#f97316' },
-  { name: 'Elite', minXp: 150000, color: '#ec4899' },
-  { name: 'Master', minXp: 250000, color: '#10b981' },
+  { name: 'Beginner', minXp: 0, color: '#8e8e93' },
+  { name: 'Novice', minXp: 5000, color: '#00c7be' },
+  { name: 'Intermediate', minXp: 15000, color: '#30d158' },
+  { name: 'Advanced', minXp: 35000, color: '#ffd60a' },
+  { name: 'Expert', minXp: 75000, color: '#ff9f0a' },
+  { name: 'Elite', minXp: 150000, color: '#ff375f' },
+  { name: 'Master', minXp: 250000, color: '#bf5af2' },
 ];
 
 const MASTER_TIER_MIN = 250000;
@@ -40,18 +41,18 @@ function getRankInfo(totalXp) {
   if (totalXp >= MASTER_TIER_MIN) {
     const extraXp = totalXp - MASTER_TIER_MIN;
     const tierLevel = Math.floor(extraXp / MASTER_TIER_STEP) + 1;
-    const xpIntoTier = extraXp % MASTER_TIER_STEP;
-    const progress = xpIntoTier / MASTER_TIER_STEP;
-    const xpToNext = MASTER_TIER_STEP - xpIntoTier;
+    const targetXp = MASTER_TIER_MIN + tierLevel * MASTER_TIER_STEP;
+    const progress = Math.min(Math.max(totalXp / targetXp, 0), 1);
+    const xpToNext = Math.max(0, targetXp - totalXp);
     return {
       rankIndex: 6,
       name: `Master${tierLevel > 1 ? ` Tier ${tierLevel}` : ''}`,
       baseName: 'Master',
-      color: '#10b981',
+      color: '#bf5af2',
       progress,
       xpToNext,
-      xpIntoRank: xpIntoTier,
-      xpNeeded: MASTER_TIER_STEP,
+      xpIntoRank: totalXp,
+      xpNeeded: targetXp,
       isMaster: true,
       tierLevel,
     };
@@ -67,10 +68,8 @@ function getRankInfo(totalXp) {
 
   const currentTier = RANK_TIERS[tierIndex];
   const nextTier = RANK_TIERS[tierIndex + 1];
-  const xpIntoRank = totalXp - currentTier.minXp;
-  const xpNeeded = nextTier.minXp - currentTier.minXp;
-  const progress = Math.min(xpIntoRank / xpNeeded, 1);
-  const xpToNext = nextTier.minXp - totalXp;
+  const progress = nextTier && nextTier.minXp > 0 ? Math.min(Math.max(totalXp / nextTier.minXp, 0), 1) : 1;
+  const xpToNext = nextTier ? Math.max(0, nextTier.minXp - totalXp) : 0;
 
   return {
     rankIndex: tierIndex,
@@ -79,65 +78,145 @@ function getRankInfo(totalXp) {
     color: currentTier.color,
     progress,
     xpToNext,
-    xpIntoRank,
-    xpNeeded,
+    xpIntoRank: totalXp,
+    xpNeeded: nextTier ? nextTier.minXp : currentTier.minXp,
     isMaster: false,
     tierLevel: tierIndex + 1,
   };
 }
 
-// Muscle Tiers with balanced steep thresholds
 const MUSCLE_TIERS = [
-  { name: 'Beginner', minXp: 0, color: '#3f3f46' },
-  { name: 'Novice', minXp: 1200, color: '#22d3ee' },
-  { name: 'Intermediate', minXp: 4000, color: '#22c55e' },
-  { name: 'Advanced', minXp: 10000, color: '#eab308' },
-  { name: 'Expert', minXp: 22000, color: '#f97316' },
-  { name: 'Elite', minXp: 45000, color: '#ec4899' },
-  { name: 'Master', minXp: 75000, color: '#10b981' },
+  { name: 'Beginner', minXp: 0, color: '#8e8e93' },
+  { name: 'Novice', minXp: 1200, color: '#00c7be' },
+  { name: 'Intermediate', minXp: 4000, color: '#30d158' },
+  { name: 'Advanced', minXp: 10000, color: '#ffd60a' },
+  { name: 'Expert', minXp: 22000, color: '#ff9f0a' },
+  { name: 'Elite', minXp: 45000, color: '#ff375f' },
+  { name: 'Master', minXp: 75000, color: '#bf5af2' },
 ];
 
-function getMuscleRank(xp) {
-  for (let i = MUSCLE_TIERS.length - 1; i >= 0; i--) {
-    if (xp >= MUSCLE_TIERS[i].minXp) {
+export const MUSCLE_XP_MULTIPLIERS = {
+  // Heavy Primary Compound Groups (Bench Press, Squats, Deadlifts, Rows, Leg Press)
+  CHEST: 3.5,
+  BACK: 3.5,
+  'UPPER BACK': 3.5,
+  'LOWER BACK': 3.5,
+  LATS: 3.5,
+  LEGS: 3.5,
+  QUADRICEPS: 3.5,
+  HAMSTRINGS: 3.5,
+  GLUTES: 3.5,
+
+  // Medium Compound Groups (Overhead Press, Shrugs, Abs, Core)
+  SHOULDERS: 2.0,
+  DELTOIDS: 2.0,
+  TRAPS: 2.0,
+  ABS: 2.0,
+  CORE: 2.0,
+  OBLIQUES: 2.0,
+
+  // Smaller Isolation Groups (Biceps, Triceps, Calves, Forearms, Neck)
+  BICEPS: 1.0,
+  TRICEPS: 1.0,
+  ARMS: 1.0,
+  CALVES: 1.0,
+  FOREARMS: 1.0,
+  NECK: 1.0,
+};
+
+export function getMuscleTiers(muscleName = '') {
+  const key = (muscleName || '').toUpperCase().trim();
+  const multiplier = MUSCLE_XP_MULTIPLIERS[key] || 1.0;
+  return MUSCLE_TIERS.map((tier) => ({
+    ...tier,
+    minXp: Math.round(tier.minXp * multiplier),
+  }));
+}
+
+function getMuscleRank(xp, muscleName = '') {
+  const tiers = getMuscleTiers(muscleName);
+  for (let i = tiers.length - 1; i >= 0; i--) {
+    if (xp >= tiers[i].minXp) {
       return i + 1;
     }
   }
   return 1;
 }
 
-function getMuscleRankName(xp) {
-  const idx = Math.min(getMuscleRank(xp) - 1, MUSCLE_TIERS.length - 1);
-  return MUSCLE_TIERS[idx]?.name || 'Master';
+function getMuscleRankName(xp, muscleName = '') {
+  const tiers = getMuscleTiers(muscleName);
+  const idx = Math.min(getMuscleRank(xp, muscleName) - 1, tiers.length - 1);
+  return tiers[idx]?.name || 'Master';
 }
 
-function getMuscleColor(xp) {
-  if (xp === 0) return '#3f3f46';
-  const idx = Math.min(getMuscleRank(xp) - 1, MUSCLE_TIERS.length - 1);
-  return MUSCLE_TIERS[idx]?.color || '#10b981';
+function getMuscleColor(xp, muscleName = '') {
+  if (xp === 0) return 'var(--text-muted)';
+  const tiers = getMuscleTiers(muscleName);
+  const idx = Math.min(getMuscleRank(xp, muscleName) - 1, tiers.length - 1);
+  return tiers[idx]?.color || '#bf5af2';
 }
 
 function getRankThemeColor(rankIndex) {
-  return RANK_TIERS[rankIndex]?.color || '#10b981';
+  return RANK_TIERS[rankIndex]?.color || '#bf5af2';
 }
 
-
 function getBmiInfo(bmi) {
-  if (!bmi || isNaN(bmi)) return { category: 'Normal Weight', color: '#10b981' };
-  if (bmi < 18.5) return { category: 'Underweight', color: '#3b82f6' };
-  if (bmi <= 24.9) return { category: 'Normal Weight', color: '#10b981' };
-  if (bmi <= 29.9) return { category: 'Overweight', color: '#f59e0b' };
-  return { category: 'Obese', color: '#ef4444' };
+  if (!bmi || isNaN(bmi)) return { category: 'Normal Weight', color: '#30d158' };
+  if (bmi < 18.5) return { category: 'Underweight', color: '#0a84ff' };
+  if (bmi <= 24.9) return { category: 'Normal Weight', color: '#30d158' };
+  if (bmi <= 29.9) return { category: 'Overweight', color: '#ff9f0a' };
+  return { category: 'Obese', color: '#ff375f' };
+}
+
+function getMuscleBadgeStyle(mRankName, xp, isDark, muscleName = '') {
+  if (xp === 0 || mRankName === 'Beginner') {
+    return isDark
+      ? {
+          color: '#d1d1d6',
+          bg: 'rgba(142, 142, 147, 0.18)',
+          border: 'rgba(142, 142, 147, 0.32)',
+          barColor: '#636366',
+        }
+      : {
+          color: '#1c1c1e',
+          bg: '#f2f2f7',
+          border: 'rgba(60, 60, 67, 0.18)',
+          barColor: '#c7c7cc',
+        };
+  }
+
+  const baseColor = getMuscleColor(xp, muscleName);
+  // High-contrast refined colors for light mode so nothing looks washed out or muddy
+  const lightColors = {
+    Novice: '#008b84',
+    Intermediate: '#248a3d',
+    Advanced: '#a37700',
+    Expert: '#c96500',
+    Elite: '#d70035',
+    Master: '#8936b2',
+  };
+
+  const badgeTextColor = isDark ? baseColor : (lightColors[mRankName] || baseColor);
+  return {
+    color: badgeTextColor,
+    bg: isDark ? `${baseColor}22` : `${baseColor}16`,
+    border: isDark ? `${baseColor}44` : `${baseColor}38`,
+    barColor: baseColor,
+  };
 }
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const [user, setUser] = useState(null);
   const [muscleGroups, setMuscleGroups] = useState(initialMuscleGroups);
   const [workouts, setWorkouts] = useState([]);
   const [completedWorkouts, setCompletedWorkouts] = useState([]);
   const [bodySide, setBodySide] = useState('front');
   const [selectedMuscle, setSelectedMuscle] = useState(null);
+  const [showAllMuscles, setShowAllMuscles] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Physical stats
@@ -147,6 +226,26 @@ export default function Dashboard() {
   const [newHeight, setNewHeight] = useState('180');
   const [newWeight, setNewWeight] = useState('75');
   const [savingProfile, setSavingProfile] = useState(false);
+  const [resettingProgress, setResettingProgress] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [resetDevUrl, setResetDevUrl] = useState(null);
+  const [requestingResetEmail, setRequestingResetEmail] = useState(false);
+  const [toastMessage, setToastMessage] = useState(null);
+  const [profileError, setProfileError] = useState(null);
+
+  const triggerToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3500);
+  };
+
+  useEffect(() => {
+    if (location.search.includes('modal=profile')) {
+      setShowProfileModal(true);
+    }
+  }, [location.search]);
 
   useEffect(() => {
     let cancelled = false;
@@ -187,9 +286,10 @@ export default function Dashboard() {
             fetchApi(`/progress/history/user/${userId}`).catch(() => null),
           ]);
 
+          let progressData = [];
           if (progressRes.ok) {
-            const progress = await progressRes.json();
-            const map = new Map(progress.map((p) => [p.muscleGroup.toUpperCase(), p.xp]));
+            progressData = await progressRes.json();
+            const map = new Map(progressData.map((p) => [p.muscleGroup.toUpperCase(), p.xp]));
 
             setMuscleGroups(
               initialMuscleGroups.map((m) => ({
@@ -204,11 +304,23 @@ export default function Dashboard() {
             dbLogs = await historyRes.json();
           }
 
-          const localCompleted = JSON.parse(
-            localStorage.getItem(`completed_workouts_${userId}`) || '[]'
-          );
+          const totalServerXp = (progressData || []).reduce((acc, p) => acc + (p.xp || 0), 0);
+          const isServerEmpty = totalServerXp === 0 && (!dbLogs || dbLogs.length === 0);
 
-          // 1. Deduplicate: remove dbLogs already captured in a localCompleted session
+          if (isServerEmpty) {
+            // Account was reset to 0: wipe stale local storage caches across all modules
+            localStorage.removeItem(`completed_workouts_${userId}`);
+            localStorage.removeItem('fitmetrics_calisthenics_xp');
+            localStorage.removeItem('fitmetrics_cali_sessions_count');
+            localStorage.removeItem(`fitmetrics_calisthenics_xp_${userId}`);
+            localStorage.removeItem(`fitmetrics_cali_sessions_count_${userId}`);
+          }
+
+          const localCompleted = isServerEmpty
+            ? []
+            : JSON.parse(localStorage.getItem(`completed_workouts_${userId}`) || '[]');
+
+          // Deduplicate
           const uncapturedDbLogs = (dbLogs || []).filter((dbLog) => {
             const dbTime = new Date(dbLog.completedAt).getTime();
             return !localCompleted.some((loc) => {
@@ -221,7 +333,7 @@ export default function Dashboard() {
             });
           });
 
-          // 2. Group uncaptured DB logs into 30-min sessions
+          // Group uncaptured DB logs into 30-min sessions
           const SESSION_WINDOW_MS = 30 * 60 * 1000;
           const sortedLogs = [...uncapturedDbLogs].sort(
             (a, b) => new Date(a.completedAt) - new Date(b.completedAt)
@@ -303,11 +415,12 @@ export default function Dashboard() {
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
+    setProfileError(null);
     const h = parseFloat(newHeight);
     const w = parseFloat(newWeight);
 
     if (isNaN(h) || isNaN(w) || h <= 0 || w <= 0) {
-      alert('Please enter valid positive numbers for height and weight.');
+      setProfileError('Please enter valid positive numbers for height and weight.');
       return;
     }
 
@@ -323,21 +436,44 @@ export default function Dashboard() {
         setWeight(w);
         setUser((prev) => ({ ...prev, height: h, weight: w }));
         setShowProfileModal(false);
+        triggerToast('Physical vitals updated successfully');
       } else {
-        alert('Could not update profile.');
+        setProfileError('Could not update profile.');
       }
     } catch (err) {
-      alert('Error updating profile: ' + err.message);
+      setProfileError('Error updating profile: ' + err.message);
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const handleRequestResetEmail = async () => {
+    setRequestingResetEmail(true);
+    try {
+      const res = await fetchApi('/auth/request-action-confirmation', {
+        method: 'POST',
+        body: JSON.stringify({ actionType: 'RESET_PROGRESS' }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setResetEmailSent(true);
+        if (data.devUrl) {
+          setResetDevUrl(data.devUrl);
+        }
+        triggerToast('Security verification email sent! Check your inbox.');
+      } else {
+        triggerToast(data.message || 'Could not send confirmation email.');
+      }
+    } catch (err) {
+      triggerToast('Error sending confirmation email: ' + err.message);
+    } finally {
+      setRequestingResetEmail(false);
     }
   };
 
   const bmi = height > 0 ? (weight / Math.pow(height / 100, 2)).toFixed(1) : '22.0';
   const bmiNumber = parseFloat(bmi);
   const bmiInfo = getBmiInfo(bmiNumber);
-
-  // Position on scale 15.0 -> 35.0
   const markerPercent = Math.min(Math.max(((bmiNumber - 15) / (35 - 15)) * 100, 0), 100);
 
   const totalXp = muscleGroups.reduce((acc, m) => acc + m.xp, 0);
@@ -345,7 +481,6 @@ export default function Dashboard() {
   const { rankIndex, name: rankName, progress: rankProgress, xpToNext: xpToNextRank, isMaster } = rankInfo;
   const rankColor = getRankThemeColor(rankIndex);
 
-  // Body calculations & metrics
   const minHealthyWeight = height > 0 ? (18.5 * Math.pow(height / 100, 2)).toFixed(1) : '60.0';
   const maxHealthyWeight = height > 0 ? (24.9 * Math.pow(height / 100, 2)).toFixed(1) : '80.7';
   const bmr = height > 0 && weight > 0 ? Math.round(10 * weight + 6.25 * height - 125) : 1750;
@@ -366,12 +501,49 @@ export default function Dashboard() {
         list.push({
           name: m.name,
           muscles: m.slugs,
-          frequency: getMuscleRank(m.xp),
+          frequency: getMuscleRank(m.xp, m.name),
         });
       }
     });
     return list;
   }, [muscleGroups]);
+
+  const totalVolumeAll = useMemo(() => {
+    return completedWorkouts.reduce((acc, w) => {
+      const vol = typeof w.totalVolume === 'number' && w.totalVolume <= 100000 ? Math.max(0, w.totalVolume) : 0;
+      return acc + vol;
+    }, 0);
+  }, [completedWorkouts]);
+
+  const totalSetsAll = useMemo(() => {
+    return completedWorkouts.reduce((acc, w) => acc + (w.totalSets || 0), 0);
+  }, [completedWorkouts]);
+
+  const completedForMuscle = useMemo(() => {
+    if (!selectedMuscle) return [];
+    return completedWorkouts.filter((cw) => {
+      const groups = cw.muscleGroups || (cw.muscleGroup ? [cw.muscleGroup] : []);
+      return groups.some((g) => g.toUpperCase() === selectedMuscle.toUpperCase());
+    });
+  }, [selectedMuscle, completedWorkouts]);
+
+  // Sort muscle groups: Top popular (Chest, Upper Back, Shoulders, Quadriceps) or highest XP first
+  const sortedMuscleGroups = useMemo(() => {
+    const popularOrder = ['CHEST', 'UPPER BACK', 'SHOULDERS', 'QUADRICEPS', 'BICEPS', 'TRICEPS', 'ABS', 'GLUTES'];
+    return [...muscleGroups].sort((a, b) => {
+      if (b.xp !== a.xp) return b.xp - a.xp;
+      const aIdx = popularOrder.indexOf(a.name.toUpperCase());
+      const bIdx = popularOrder.indexOf(b.name.toUpperCase());
+      if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+      if (aIdx !== -1) return -1;
+      if (bIdx !== -1) return 1;
+      return 0;
+    });
+  }, [muscleGroups]);
+
+  const displayedMuscles = useMemo(() => {
+    return showAllMuscles ? sortedMuscleGroups : sortedMuscleGroups.slice(0, 4);
+  }, [showAllMuscles, sortedMuscleGroups]);
 
   // Floating rank energy particles
   const particles = useMemo(() => {
@@ -389,101 +561,398 @@ export default function Dashboard() {
     return list;
   }, []);
 
-  // Completed workouts for selected muscle group
-  const completedForMuscle = useMemo(() => {
-    if (!selectedMuscle) return [];
-    return completedWorkouts.filter((cw) => {
-      const groups = cw.muscleGroups || (cw.muscleGroup ? [cw.muscleGroup] : []);
-      return groups.some((g) => g.toUpperCase() === selectedMuscle.toUpperCase());
-    });
-  }, [selectedMuscle, completedWorkouts]);
+  // Current date formatted in authentic Apple style: e.g. "TUESDAY, SEPTEMBER 15"
+  const formattedDate = useMemo(() => {
+    const d = new Date();
+    return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase();
+  }, []);
+
+  // Activity Ring calculations (percentages 0 - 1)
+  const ringMove = Math.min((totalVolumeAll % 10000) / 10000 || (totalVolumeAll > 0 ? 0.65 : 0.25), 1);
+  const ringExercise = Math.min((totalSetsAll % 50) / 50 || (totalSetsAll > 0 ? 0.75 : 0.35), 1);
+  const ringStand = Math.min(rankProgress || 0.45, 1);
 
   if (loading) {
     return (
-      <div style={styles.centerWrap}>
-        <div style={styles.spinner}></div>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-main)' }}>
+        <div style={{ width: 36, height: 36, border: '3px solid var(--border-subtle)', borderTopColor: 'var(--accent-red)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
       </div>
     );
   }
 
   return (
-    <div style={styles.page}>
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-main)', color: 'var(--text-primary)', transition: 'background-color 0.25s ease' }}>
       <Navbar user={user} />
 
-      <main className="dashboard-main" style={styles.main}>
-        {/* Top Header */}
-        <div className="dashboard-header" style={styles.headerRow}>
+      <main style={{ maxWidth: 1040, width: '100%', boxSizing: 'border-box', margin: '0 auto', padding: '28px 20px 120px', display: 'flex', flexDirection: 'column', gap: 24, overflowX: 'hidden' }}>
+        
+        {/* Apple Health Summary Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16 }}>
           <div>
-            <h1 style={styles.pageTitle}>Dashboard</h1>
-            <p style={styles.pageSubtitle}>Physical metrics, muscle progression, and completed workout logs</p>
-          </div>
-          <button onClick={() => navigate('/workouts')} style={styles.startBtn}>
-            Start Workout
-          </button>
-        </div>
-
-        {/* 3 Physical Stats Cards */}
-        <div className="dashboard-stats-grid" style={styles.statsGrid}>
-          <div style={styles.statCard}>
-            <div style={styles.statCardTop}>
-              <span style={styles.statLabel}>Height</span>
-              <button
-                onClick={() => setShowProfileModal(true)}
-                style={styles.editStatBtn}
-                title="Edit Height & Weight"
-              >
-                ✎
-              </button>
+            <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.6px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 2 }}>
+              {formattedDate}
             </div>
-            <div style={styles.statValue}>{height} cm</div>
+            <h1 style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-0.5px', margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              Summary
+            </h1>
           </div>
 
-          <div style={styles.statCard}>
-            <div style={styles.statCardTop}>
-              <span style={styles.statLabel}>Current Weight</span>
-              <button
-                onClick={() => setShowProfileModal(true)}
-                style={styles.editStatBtn}
-                title="Edit Height & Weight"
-              >
-                ✎
-              </button>
-            </div>
-            <div style={styles.statValue}>{weight} kg</div>
-          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              onClick={() => setShowProfileModal(true)}
+              className="ios-button-secondary"
+              style={{ padding: '8px 14px', borderRadius: 9999, fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 20h9"/>
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+              </svg>
+              <span>Edit Vitals</span>
+            </button>
 
-          <div style={styles.statCard}>
-            <div style={styles.statCardTop}>
-              <span style={styles.statLabel}>Body Mass Index (BMI)</span>
-            </div>
-            <div style={{ ...styles.statValue, color: bmiInfo.color }}>{bmi}</div>
+            <button
+              onClick={() => navigate('/workouts')}
+              className="ios-button-primary"
+              style={{ padding: '9px 18px', borderRadius: 9999, fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+              <span>Start Workout</span>
+            </button>
           </div>
         </div>
 
-        {/* BMI Scale Card */}
-        <div className="dashboard-card" style={styles.card}>
-          <div className="dashboard-card-header" style={styles.cardHeader}>
-            <h2 style={styles.cardTitle}>BMI Scale</h2>
-            <span style={{ ...styles.badge, backgroundColor: `${bmiInfo.color}22`, color: bmiInfo.color }}>
+        {/* Section: Activity & Progression (Apple Fitness Activity Rings + Rank Medal) */}
+        <div className="ios-card" style={{ padding: '22px 24px', display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'center', justifyContent: 'space-between' }}>
+          
+          {/* Left: Concentric Activity Rings */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+            <div style={{ position: 'relative', width: 110, height: 110 }}>
+              <svg width="110" height="110" viewBox="0 0 110 110">
+                {/* Outer Ring: Move (Red) */}
+                <circle cx="55" cy="55" r="46" fill="none" stroke="rgba(255, 45, 85, 0.15)" strokeWidth="9" />
+                <circle
+                  cx="55"
+                  cy="55"
+                  r="46"
+                  fill="none"
+                  stroke="#ff2d55"
+                  strokeWidth="9"
+                  strokeDasharray={`${2 * Math.PI * 46}`}
+                  strokeDashoffset={`${2 * Math.PI * 46 * (1 - ringMove)}`}
+                  strokeLinecap="round"
+                  transform="rotate(-90 55 55)"
+                  style={{ transition: 'stroke-dashoffset 1s ease' }}
+                />
+
+                {/* Middle Ring: Exercise (Green) */}
+                <circle cx="55" cy="55" r="34" fill="none" stroke="rgba(48, 209, 88, 0.15)" strokeWidth="9" />
+                <circle
+                  cx="55"
+                  cy="55"
+                  r="34"
+                  fill="none"
+                  stroke="#30d158"
+                  strokeWidth="9"
+                  strokeDasharray={`${2 * Math.PI * 34}`}
+                  strokeDashoffset={`${2 * Math.PI * 34 * (1 - ringExercise)}`}
+                  strokeLinecap="round"
+                  transform="rotate(-90 55 55)"
+                  style={{ transition: 'stroke-dashoffset 1s ease' }}
+                />
+
+                {/* Inner Ring: Stand/XP (Stand Cyan/Blue) */}
+                <circle cx="55" cy="55" r="22" fill="none" stroke="rgba(0, 199, 190, 0.15)" strokeWidth="9" />
+                <circle
+                  cx="55"
+                  cy="55"
+                  r="22"
+                  fill="none"
+                  stroke="#00c7be"
+                  strokeWidth="9"
+                  strokeDasharray={`${2 * Math.PI * 22}`}
+                  strokeDashoffset={`${2 * Math.PI * 22 * (1 - ringStand)}`}
+                  strokeLinecap="round"
+                  transform="rotate(-90 55 55)"
+                  style={{ transition: 'stroke-dashoffset 1s ease' }}
+                />
+              </svg>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.6px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                ACTIVITY RINGS
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#ff2d55' }} />
+                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                  Volume: <strong style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>{totalVolumeAll.toLocaleString()} kg</strong>
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#30d158' }} />
+                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                  Sessions: <strong style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>{completedWorkouts.length} logged</strong>
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#00c7be' }} />
+                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                  Total XP: <strong style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>{totalXp.toLocaleString()}</strong>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Apple Watch Award Badge & Rank Progression */}
+          <div style={{ flex: '1 1 280px', display: 'flex', alignItems: 'center', gap: 18, borderLeft: '0.5px solid var(--border-subtle)', paddingLeft: 20 }}>
+            {/* Apple Fitness Metallic Achievement Medal */}
+            <div
+              style={{
+                width: 60,
+                height: 60,
+                borderRadius: '50%',
+                background: `linear-gradient(145deg, rgba(255, 255, 255, 0.55) 0%, ${rankColor} 55%, #18181a 100%)`,
+                padding: 3,
+                boxShadow: `0 6px 18px ${rankColor}40, inset 0 1px 2px rgba(255, 255, 255, 0.8)`,
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <div
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  borderRadius: '50%',
+                  background: 'radial-gradient(circle at 35% 30%, #38383a 0%, #202022 70%, #121214 100%)',
+                  border: `1.5px solid ${rankColor}88`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: 'inset 0 3px 6px rgba(0, 0, 0, 0.7)',
+                }}
+              >
+                <svg
+                  width="28"
+                  height="28"
+                  viewBox="0 0 24 24"
+                  style={{ filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.75))' }}
+                >
+                  {/* Left Facet: Bright White Highlight with clean border */}
+                  <path
+                    d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
+                    fill={rankIndex === 0 ? '#f2f2f7' : rankColor}
+                    stroke="#ffffff"
+                    strokeWidth="0.8"
+                    strokeLinejoin="round"
+                  />
+                  {/* Right Facet: Crisp Bevel Shading for 3D depth */}
+                  <path
+                    d="M12 2v15.77l6.18 3.25L17 14.14l5-4.87-6.91-1.01L12 2z"
+                    fill="rgba(0, 0, 0, 0.22)"
+                  />
+                </svg>
+              </div>
+            </div>
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)' }}>{rankName}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
+                    {Math.round(rankProgress * 100)}%
+                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: rankColor, letterSpacing: '0.4px', textTransform: 'uppercase' }}>
+                    LEVEL {rankIndex + 1}
+                  </span>
+                </div>
+              </div>
+              
+              <div style={{ height: 8, width: '100%', backgroundColor: 'var(--bg-input)', borderRadius: 9999, margin: '8px 0 6px', overflow: 'hidden' }}>
+                <div
+                  style={{
+                    height: '100%',
+                    width: `${Math.max(2, Math.round(rankProgress * 100))}%`,
+                    backgroundColor: rankColor,
+                    borderRadius: 9999,
+                    boxShadow: `0 0 10px ${rankColor}66`,
+                    transition: 'width 0.6s ease',
+                  }}
+                />
+              </div>
+
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+                  {totalXp.toLocaleString()} XP
+                </span>
+                <span>
+                  {isMaster ? 'Master Tier' : `${xpToNextRank.toLocaleString()} XP to ${RANK_TIERS[rankIndex + 1]?.name || 'Master'}`}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Section: Favorites / Physical Vitals (Apple Health Tiles) */}
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h2 style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-0.2px', color: 'var(--text-primary)', margin: 0 }}>
+              Physical Vitals
+            </h2>
+            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Latest Metrics</span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+            {/* Tile 1: Height */}
+            <div className="ios-card" style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden' }}>
+                  <div style={{ width: 26, height: 26, borderRadius: 7, backgroundColor: 'rgba(0, 199, 190, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00c7be', flexShrink: 0 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21.3 8.7 8.7 21.3c-.4.4-1 .4-1.4 0l-4.6-4.6c-.4-.4-.4-1 0-1.4L15.3 2.7c.4-.4 1-.4 1.4 0l4.6 4.6c.4.4.4 1 0 1.4Z"/>
+                      <path d="m14.5 3.5 1 1"/>
+                      <path d="m11.5 6.5 2 2"/>
+                      <path d="m8.5 9.5 1 1"/>
+                      <path d="m5.5 12.5 2 2"/>
+                    </svg>
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                    HEIGHT
+                  </span>
+                </div>
+                <button
+                  onClick={() => setShowProfileModal(true)}
+                  style={{ background: 'none', border: 'none', color: '#007aff', fontSize: 11, fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                >
+                  Edit
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
+                <span style={{ fontSize: 'clamp(20px, 4vw, 26px)', fontWeight: 800, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>
+                  {height}
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>cm</span>
+              </div>
+
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                Stature
+              </div>
+            </div>
+
+            {/* Tile 2: Weight */}
+            <div className="ios-card" style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden' }}>
+                  <div style={{ width: 26, height: 26, borderRadius: 7, backgroundColor: 'rgba(48, 209, 88, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#30d158', flexShrink: 0 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m12 3-8 4v2a12 12 0 0 0 8 11.3A12 12 0 0 0 20 9V7Z"/>
+                      <path d="m9 12 2 2 4-4"/>
+                    </svg>
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                    WEIGHT
+                  </span>
+                </div>
+                <button
+                  onClick={() => setShowProfileModal(true)}
+                  style={{ background: 'none', border: 'none', color: '#007aff', fontSize: 11, fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                >
+                  Edit
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
+                <span style={{ fontSize: 'clamp(20px, 4vw, 26px)', fontWeight: 800, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>
+                  {weight}
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>kg</span>
+              </div>
+
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                {minHealthyWeight}-{maxHealthyWeight} kg
+              </div>
+            </div>
+
+            {/* Tile 3: BMI */}
+            <div className="ios-card" style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden' }}>
+                  <div style={{ width: 26, height: 26, borderRadius: 7, backgroundColor: 'rgba(175, 82, 222, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#af52de', flexShrink: 0 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/>
+                      <path d="M12 6v6l4 2"/>
+                    </svg>
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                    BMI
+                  </span>
+                </div>
+                <span style={{ fontSize: 9, fontWeight: 700, color: bmiInfo.color, padding: '1px 5px', borderRadius: 9999, backgroundColor: `${bmiInfo.color}1f`, whiteSpace: 'nowrap' }}>
+                  {bmiInfo.category === 'Normal Weight' ? 'Normal' : bmiInfo.category}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
+                <span style={{ fontSize: 'clamp(20px, 4vw, 26px)', fontWeight: 800, color: bmiInfo.color, fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>
+                  {bmi}
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>BMI</span>
+              </div>
+
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                Ref 18.5-24.9
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Section: BMI Scale Bar */}
+        <div className="ios-card" style={{ padding: '20px 24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.5px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                HEALTH METRIC GAUGE
+              </div>
+              <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', margin: '2px 0 0' }}>
+                BMI Classification
+              </h3>
+            </div>
+            <span style={{ fontSize: 13, fontWeight: 600, color: bmiInfo.color, padding: '4px 10px', borderRadius: 9999, backgroundColor: `${bmiInfo.color}1a` }}>
               {bmiInfo.category} ({bmi})
             </span>
           </div>
 
-          <div style={styles.scaleContainer}>
-            <div style={styles.scaleTrack}>
-              <div style={{ ...styles.scaleSegment, backgroundColor: '#3b82f6', width: '17.5%' }} />
-              <div style={{ ...styles.scaleSegment, backgroundColor: '#10b981', width: '32%' }} />
-              <div style={{ ...styles.scaleSegment, backgroundColor: '#f59e0b', width: '25%' }} />
-              <div style={{ ...styles.scaleSegment, backgroundColor: '#ef4444', width: '25.5%' }} />
+          <div style={{ position: 'relative', width: '100%', marginTop: 28, marginBottom: 10 }}>
+            {/* Indicator Pin */}
+            <div style={{
+              position: 'absolute',
+              top: -24,
+              left: `${markerPercent}%`,
+              transform: 'translateX(-50%)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              zIndex: 3,
+            }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: bmiInfo.color, backgroundColor: 'var(--bg-card)', padding: '1px 6px', borderRadius: 6, boxShadow: 'var(--shadow-sm)', border: `1px solid ${bmiInfo.color}` }}>
+                {bmi}
+              </span>
+              <div style={{ width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: `5px solid ${bmiInfo.color}` }} />
             </div>
 
-            {/* Marker Indicator */}
-            <div style={{ ...styles.scaleMarker, left: `${markerPercent}%` }}>
-              <div style={styles.markerPointer} />
-              <div style={{ ...styles.markerLabel, color: bmiInfo.color }}>{bmi}</div>
+            {/* Segmented Track */}
+            <div style={{ height: 8, width: '100%', borderRadius: 9999, display: 'flex', overflow: 'hidden', backgroundColor: 'var(--bg-input)' }}>
+              <div style={{ width: '17.5%', backgroundColor: '#0a84ff' }} title="Underweight (< 18.5)" />
+              <div style={{ width: '32%', backgroundColor: '#30d158' }} title="Normal (18.5 - 24.9)" />
+              <div style={{ width: '25%', backgroundColor: '#ff9f0a' }} title="Overweight (25 - 29.9)" />
+              <div style={{ width: '25.5%', backgroundColor: '#ff375f' }} title="Obese (>= 30)" />
             </div>
 
-            <div className="dashboard-scale-labels" style={styles.scaleLabels}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', marginTop: 8 }}>
               <span>15.0</span>
               <span>18.5 (Normal)</span>
               <span>25.0 (Overweight)</span>
@@ -492,327 +961,617 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Body Visualizer Card */}
-        <div className="dashboard-card" style={styles.card}>
-          <div className="dashboard-card-header" style={styles.cardHeader}>
+        {/* Section: Body Visualizer & Anatomical Breakdown */}
+        <div className="ios-card" style={{ padding: '22px 24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14, marginBottom: 20 }}>
             <div>
-              <h2 style={styles.cardTitle}>Body Visualizer</h2>
-              <div style={styles.cardMeta}>Visual muscle training load & anatomical metrics</div>
+              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.5px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                ANATOMICAL MODEL
+              </div>
+              <h3 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: '2px 0 0' }}>
+                Body Visualizer
+              </h3>
             </div>
 
-            <div style={styles.sideToggle}>
+            {/* Apple iOS Segmented Control */}
+            <div className="ios-segmented-control" style={{ width: 180 }}>
               <button
+                type="button"
                 onClick={() => setBodySide('front')}
-                style={{
-                  ...styles.sideBtn,
-                  ...(bodySide === 'front' ? styles.sideBtnActive : {}),
-                }}
+                className={`ios-segment-btn ${bodySide === 'front' ? 'active' : ''}`}
               >
-                FRONT
+                Front
               </button>
               <button
+                type="button"
                 onClick={() => setBodySide('back')}
-                style={{
-                  ...styles.sideBtn,
-                  ...(bodySide === 'back' ? styles.sideBtnActive : {}),
-                }}
+                className={`ios-segment-btn ${bodySide === 'back' ? 'active' : ''}`}
               >
-                BACK
+                Back
               </button>
             </div>
           </div>
 
-          <div className="dashboard-visualizer-grid" style={styles.visualizerContentGrid}>
-            {/* Left Column: Mannequin Visualizer with Corner Rank Badge and Minimalist Background Animation */}
-            <div className="dashboard-mannequin-col" style={styles.visualizerMannequinCol}>
-              {/* Corner Rank HUD Badge */}
-              <div style={styles.cornerRankBadge}>
-                <div style={styles.cornerRankTop}>
-                  <span style={{ ...styles.cornerRankDot, backgroundColor: rankColor }} />
-                  <span style={{ ...styles.cornerRankTitle, color: rankColor }}>{rankName.toUpperCase()}</span>
-                </div>
-                <div style={styles.cornerRankSub}>
-                  {isMaster ? (
-                    <><span style={{ color: '#ffffff', fontWeight: 900 }}>{xpToNextRank.toLocaleString()} XP</span> to next milestone</>
-                  ) : (
-                    <><span style={{ color: '#ffffff', fontWeight: 900 }}>{xpToNextRank.toLocaleString()} XP</span> to {RANK_TIERS[rankIndex + 1]?.name || 'Master'}</>
-                  )}
-                </div>
-                <div style={styles.cornerMiniBar}>
-                  <div
-                    style={{
-                      ...styles.cornerMiniFill,
-                      width: `${rankProgress * 100}%`,
-                      backgroundColor: rankColor,
-                    }}
-                  />
-                </div>
-              </div>
+          <div className="body-visualizer-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: 24, alignItems: 'center' }}>
+            {/* Mannequin Visualizer with Animated Rank Ambient Aura and Flying Particles */}
+            <div
+              style={{
+                position: 'relative',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                minHeight: 360,
+                backgroundColor: isDark ? 'var(--bg-input)' : '#f2f2f7',
+                borderRadius: 16,
+                padding: '20px 0',
+                overflow: 'hidden',
+              }}
+            >
+              {/* Minimalist Rank Ambient Aura Rings */}
+              <div
+                style={{
+                  position: 'absolute',
+                  left: 'calc(50% - 140px)',
+                  top: 'calc(50% - 140px)',
+                  width: 280,
+                  height: 280,
+                  borderRadius: '50%',
+                  border: `1.5px dashed ${rankColor}66`,
+                  animation: 'rankRingPulse 4.5s ease-in-out infinite',
+                  pointerEvents: 'none',
+                  zIndex: 1,
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  left: 'calc(50% - 115px)',
+                  top: 'calc(50% - 155px)',
+                  width: 230,
+                  height: 310,
+                  borderRadius: '50%',
+                  background: `radial-gradient(ellipse at center, ${rankColor}33 0%, ${rankColor}12 48%, transparent 72%)`,
+                  animation: 'rankBreathe 3.2s ease-in-out infinite',
+                  pointerEvents: 'none',
+                  zIndex: 1,
+                }}
+              />
 
-              {/* Centered Mannequin Container with Animated Rank Ambient Aura and Flying Particles */}
-              <div style={styles.bodyWrap}>
-                {/* Minimalist Rank Ambient Aura Rings */}
+              {/* Flying Particles based on Current Rank */}
+              {particles.map((p) => (
                 <div
+                  key={p.id}
                   style={{
                     position: 'absolute',
-                    width: 280,
-                    height: 280,
+                    left: `${p.left}%`,
+                    top: 0,
+                    width: p.size,
+                    height: p.size,
                     borderRadius: '50%',
-                    border: `1.5px dashed ${rankColor}66`,
-                    animation: 'rankRingPulse 4.5s ease-in-out infinite',
+                    backgroundColor: rankColor,
+                    boxShadow: `0 0 8px ${rankColor}, 0 0 16px ${rankColor}aa`,
+                    animation: `floatParticle ${p.duration}s ease-in-out infinite`,
+                    animationDelay: `${p.delay}s`,
                     pointerEvents: 'none',
-                    zIndex: 0,
+                    zIndex: 2,
                   }}
                 />
-                <div
-                  style={{
-                    position: 'absolute',
-                    width: 230,
-                    height: 310,
-                    borderRadius: '50%',
-                    background: `radial-gradient(ellipse at center, ${rankColor}2e 0%, ${rankColor}10 48%, transparent 72%)`,
-                    animation: 'rankBreathe 3.2s ease-in-out infinite',
-                    pointerEvents: 'none',
-                    zIndex: 0,
-                  }}
-                />
+              ))}
 
-                {/* Flying Particles based on Current Rank */}
-                {particles.map((p) => (
-                  <div
-                    key={p.id}
-                    style={{
-                      position: 'absolute',
-                      left: `${p.left}%`,
-                      bottom: 0,
-                      width: p.size,
-                      height: p.size,
-                      borderRadius: '50%',
-                      backgroundColor: rankColor,
-                      boxShadow: `0 0 8px ${rankColor}, 0 0 16px ${rankColor}aa`,
-                      animation: `floatParticle ${p.duration}s ease-in-out infinite`,
-                      animationDelay: `${p.delay}s`,
-                      pointerEvents: 'none',
-                      zIndex: 1,
-                    }}
-                  />
-                ))}
-
-                <div className="dashboard-body-center" style={styles.bodyCenterContainer}>
-                  <Model
-                    data={bodyData}
-                    type={bodySide === 'front' ? 'anterior' : 'posterior'}
-                    bodyColor="#3f3f46"
-                    highlightedColors={RANK_TIERS.map((tier) => tier.color)}
-                    style={{
-                      width: '100%',
-                      height: '340px',
-                      margin: '0 auto',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      position: 'relative',
-                      zIndex: 2,
-                    }}
-                    svgStyle={{ maxHeight: '340px', width: '100%', margin: '0 auto', display: 'block' }}
-                  />
-                </div>
-              </div>
-
-              {/* Visualizer Legend */}
-              <div style={styles.legend}>
-                {RANK_TIERS.map(({ color, name }) => (
-                  <div key={name} style={styles.legendItem}>
-                    <div style={{ ...styles.legendDot, backgroundColor: color }} />
-                    <span style={styles.legendText}>{name.toUpperCase()}</span>
-                  </div>
-                ))}
-              </div>
+              {/* Anatomical Model */}
+              <Model
+                data={bodyData}
+                type={bodySide === 'front' ? 'anterior' : 'posterior'}
+                bodyColor={isDark ? 'rgba(142, 142, 147, 0.45)' : 'rgba(120, 120, 128, 0.35)'}
+                highlightedColors={RANK_TIERS.map((tier) => tier.color)}
+                style={{
+                  width: '100%',
+                  height: '320px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  position: 'relative',
+                  zIndex: 3,
+                }}
+                svgStyle={{ maxHeight: '320px', width: '100%', margin: '0 auto', display: 'block' }}
+              />
             </div>
 
-            {/* Right Column: Detailed Body Information & Insights */}
-            <div className="dashboard-body-details" style={styles.bodyDetailsCol}>
-              <div style={styles.detailsHeader}>
-                <span style={styles.eyebrow}>ANATOMICAL PROFILE & METRICS</span>
-                <h3 style={styles.detailsTitle}>Body Analysis</h3>
+            {/* Physiological Insights (Apple Health Metric Cards) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.6px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 2 }}>
+                PHYSIOLOGICAL INSIGHTS
               </div>
 
-              <div className="dashboard-info-grid" style={styles.infoCardsGrid}>
-                {/* Height & Weight */}
-                <div style={styles.infoCard}>
-                  <div style={styles.infoCardLabel}>HEIGHT & WEIGHT</div>
-                  <div style={styles.infoCardValue}>
-                    {height} <span style={styles.infoCardUnit}>cm</span> / {weight} <span style={styles.infoCardUnit}>kg</span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                {/* Metric 1: Basal Metabolism */}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    backgroundColor: isDark ? 'var(--bg-input)' : '#f2f2f7',
+                    borderRadius: 14,
+                    border: isDark ? '0.5px solid var(--border-subtle)' : '0.5px solid rgba(60, 60, 67, 0.12)',
+                    gap: 8,
+                    minWidth: 0,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 8,
+                        backgroundColor: 'rgba(255, 159, 10, 0.15)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#ff9f0a',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+                      </svg>
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                      Basal Metabolism
+                    </span>
                   </div>
-                  <div style={styles.infoCardMeta}>User Physical Baseline</div>
+                  <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+                    {bmr.toLocaleString()} <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)' }}>kcal</span>
+                  </div>
                 </div>
 
-                {/* BMI Status */}
-                <div style={styles.infoCard}>
-                  <div style={styles.infoCardLabel}>BODY MASS INDEX</div>
-                  <div style={{ ...styles.infoCardValue, color: bmiInfo.color }}>
-                    {bmi} <span style={styles.infoCardUnit}>BMI</span>
+                {/* Metric 2: Dominant Muscle */}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    backgroundColor: isDark ? 'var(--bg-input)' : '#f2f2f7',
+                    borderRadius: 14,
+                    border: isDark ? '0.5px solid var(--border-subtle)' : '0.5px solid rgba(60, 60, 67, 0.12)',
+                    gap: 8,
+                    minWidth: 0,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 8,
+                        backgroundColor: 'rgba(191, 90, 242, 0.15)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#bf5af2',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                      </svg>
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                      Dominant Muscle
+                    </span>
                   </div>
-                  <div style={{ ...styles.infoCardMeta, color: bmiInfo.color }}>
-                    {bmiInfo.category}
-                  </div>
-                </div>
-
-                {/* Healthy Weight Range */}
-                <div style={styles.infoCard}>
-                  <div style={styles.infoCardLabel}>HEALTHY WEIGHT RANGE</div>
-                  <div style={styles.infoCardValue}>
-                    {minHealthyWeight} - {maxHealthyWeight} <span style={styles.infoCardUnit}>kg</span>
-                  </div>
-                  <div style={styles.infoCardMeta}>Recommended for {height} cm</div>
-                </div>
-
-                {/* Estimated BMR */}
-                <div style={styles.infoCard}>
-                  <div style={styles.infoCardLabel}>EST. BASAL METABOLISM (BMR)</div>
-                  <div style={styles.infoCardValue}>
-                    {bmr.toLocaleString()} <span style={styles.infoCardUnit}>kcal/day</span>
-                  </div>
-                  <div style={styles.infoCardMeta}>Daily resting energy expenditure</div>
-                </div>
-
-                {/* Dominant Muscle */}
-                <div style={styles.infoCard}>
-                  <div style={styles.infoCardLabel}>DOMINANT MUSCLE GROUP</div>
-                  <div style={styles.infoCardValue}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: topMuscle ? (isDark ? getMuscleColor(topMuscle.xp, topMuscle.name) : '#8936b2') : 'var(--text-muted)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                     {topMuscle ? topMuscle.name : 'None'}
                   </div>
-                  <div style={styles.infoCardMeta}>
-                    {topMuscle
-                      ? `${topMuscle.xp} XP • ${getMuscleRankName(topMuscle.xp)}`
-                      : 'All muscle groups at baseline'}
+                </div>
+
+                {/* Metric 3: Active Muscle Groups */}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    backgroundColor: isDark ? 'var(--bg-input)' : '#f2f2f7',
+                    borderRadius: 14,
+                    border: isDark ? '0.5px solid var(--border-subtle)' : '0.5px solid rgba(60, 60, 67, 0.12)',
+                    gap: 8,
+                    minWidth: 0,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 8,
+                        backgroundColor: 'rgba(48, 209, 88, 0.15)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: isDark ? '#30d158' : '#248a3d',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <circle cx="12" cy="12" r="6" />
+                        <circle cx="12" cy="12" r="2" />
+                      </svg>
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                      Active Muscles
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+                    {trainedCount} <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)' }}>/ {muscleGroups.length}</span>
                   </div>
                 </div>
 
-                {/* Muscle Coverage */}
-                <div style={styles.infoCard}>
-                  <div style={styles.infoCardLabel}>MUSCLE GROUPS ACTIVATED</div>
-                  <div style={styles.infoCardValue}>
-                    {trainedCount} / {muscleGroups.length}
+                {/* Metric 4: Healthy Weight Boundary */}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    backgroundColor: isDark ? 'var(--bg-input)' : '#f2f2f7',
+                    borderRadius: 14,
+                    border: isDark ? '0.5px solid var(--border-subtle)' : '0.5px solid rgba(60, 60, 67, 0.12)',
+                    gap: 8,
+                    minWidth: 0,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 8,
+                        backgroundColor: 'rgba(10, 132, 255, 0.15)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: isDark ? '#0a84ff' : '#0071e3',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/>
+                        <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/>
+                        <path d="M7 21h10"/>
+                        <path d="M12 3v18"/>
+                        <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>
+                      </svg>
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                      Healthy Target
+                    </span>
                   </div>
-                  <div style={styles.infoCardMeta}>
-                    {trainedCount === muscleGroups.length
-                      ? 'Full body coverage achieved'
-                      : `${muscleGroups.length - trainedCount} groups remaining to train`}
+                  <div style={{ fontSize: 14, fontWeight: 800, color: isDark ? '#30d158' : '#248a3d', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                    {minHealthyWeight} - {maxHealthyWeight} <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-muted)' }}>kg</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Rank Progression Legend Bar (Milestone Tiers Reference Guide) */}
+          <div style={{ marginTop: 22, paddingTop: 18, borderTop: '0.5px solid var(--border-subtle)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.6px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                Rank Progression Guide
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>• Milestone tiers & XP thresholds</span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {/* Row 1: 4 Ranks (Beginner, Novice, Intermediate, Advanced) */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                {RANK_TIERS.slice(0, 4).map((tier) => (
+                  <div
+                    key={tier.name}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '8px 8px',
+                      borderRadius: 10,
+                      backgroundColor: isDark ? 'var(--bg-input)' : '#f2f2f7',
+                      border: isDark ? '0.5px solid var(--border-subtle)' : '0.5px solid rgba(60, 60, 67, 0.12)',
+                      minWidth: 0,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        backgroundColor: tier.color,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: 'var(--text-primary)',
+                          whiteSpace: 'nowrap',
+                          textOverflow: 'ellipsis',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {tier.name}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          color: 'var(--text-muted)',
+                          fontWeight: 500,
+                          fontVariantNumeric: 'tabular-nums',
+                        }}
+                      >
+                        {tier.minXp >= 1000 ? `${(tier.minXp / 1000).toLocaleString()}k` : `${tier.minXp}`}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Row 2: 3 Ranks (Expert, Elite, Master) */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                {RANK_TIERS.slice(4).map((tier) => (
+                  <div
+                    key={tier.name}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '8px 10px',
+                      borderRadius: 10,
+                      backgroundColor: isDark ? 'var(--bg-input)' : '#f2f2f7',
+                      border: isDark ? '0.5px solid var(--border-subtle)' : '0.5px solid rgba(60, 60, 67, 0.12)',
+                      minWidth: 0,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        backgroundColor: tier.color,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: 'var(--text-primary)',
+                          whiteSpace: 'nowrap',
+                          textOverflow: 'ellipsis',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {tier.name}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          color: 'var(--text-muted)',
+                          fontWeight: 500,
+                          fontVariantNumeric: 'tabular-nums',
+                        }}
+                      >
+                        {tier.minXp >= 1000 ? `${(tier.minXp / 1000).toLocaleString()}k` : `${tier.minXp}`}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Total XP & Rank Progression */}
-        <div className="dashboard-card dashboard-rank-card" style={styles.card}>
-          <div className="dashboard-card-header" style={styles.cardHeader}>
+        {/* Section: Muscle Groups Breakdown Grid */}
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <div>
-              <span style={styles.eyebrow}>OVERALL PROGRESSION</span>
-              <div style={styles.totalXpVal}>{totalXp.toLocaleString()} XP</div>
+              <h2 style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-0.2px', color: 'var(--text-primary)', margin: 0 }}>
+                Muscle Group Progression
+              </h2>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Tap any group to inspect completed workout history</div>
             </div>
-            <div style={{ ...styles.rankBadge, borderColor: rankColor }}>
-              <div style={{ ...styles.rankNumber, color: rankColor }}>{rankName}</div>
-              <div style={styles.rankLabel}>CURRENT RANK</div>
-            </div>
-          </div>
-
-          <div style={styles.progressBar}>
-            <div style={{ ...styles.progressFill, width: `${rankProgress * 100}%`, backgroundColor: rankColor }} />
-          </div>
-          <div style={styles.progressText}>
-            {isMaster
-              ? `${rankInfo.xpIntoRank.toLocaleString()} XP into Master — no cap`
-              : `${rankInfo.xpIntoRank.toLocaleString()} / ${rankInfo.xpNeeded.toLocaleString()} XP to ${RANK_TIERS[rankIndex + 1]?.name || 'Master'}`}
-          </div>
-        </div>
-
-        {/* Muscle XP Breakdown Grid */}
-        <div style={styles.sectionHeader}>
-          <h2 style={styles.sectionTitle}>MUSCLE GROUPS XP</h2>
-          <span style={styles.sectionMeta}>THIS CYCLE</span>
-        </div>
-
-        <div className="dashboard-muscle-grid" style={styles.muscleGrid}>
-          {muscleGroups.map((muscle) => {
-            const color = getMuscleColor(muscle.xp);
-            const mRank = getMuscleRank(muscle.xp);
-            const mRankName = getMuscleRankName(muscle.xp);
-            const mTier = MUSCLE_TIERS[mRank - 1] || MUSCLE_TIERS[0];
-            const nextMTier = MUSCLE_TIERS[mRank];
-            const mFloor = mTier.minXp;
-            const mCeil = nextMTier ? nextMTier.minXp : mFloor + 30000;
-            const mProgress = Math.min(Math.max((muscle.xp - mFloor) / (mCeil - mFloor), 0), 1);
-            const isSelected = selectedMuscle === muscle.name;
-            return (
-              <div
-                key={muscle.name}
-                onClick={() => {
-                  setSelectedMuscle((prev) => (prev === muscle.name ? null : muscle.name));
-                }}
-                style={{
-                  ...styles.muscleCard,
-                  ...(isSelected ? styles.muscleCardSelected : {}),
-                }}
+            {selectedMuscle && (
+              <button
+                onClick={() => setSelectedMuscle(null)}
+                style={{ background: 'none', border: 'none', color: '#007aff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
               >
-                <div style={{ ...styles.muscleAccent, backgroundColor: color }} />
-                <div style={styles.muscleTop}>
-                  <span style={styles.muscleName}>{muscle.name}</span>
-                  <span style={{ ...styles.muscleRank, color }}>{mRankName.toUpperCase()}</span>
-                </div>
-                <div style={styles.muscleXp}>{muscle.xp} XP</div>
-                <div style={styles.muscleTrack}>
+                Clear Selection
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 190px), 1fr))', gap: 12 }}>
+            {displayedMuscles.map((muscle) => {
+              const tiers = getMuscleTiers(muscle.name);
+              const mRank = getMuscleRank(muscle.xp, muscle.name);
+              const mRankName = getMuscleRankName(muscle.xp, muscle.name);
+              const mTier = tiers[mRank - 1] || tiers[0];
+              const nextMTier = tiers[mRank];
+              const mFloor = mTier.minXp;
+              const mult = MUSCLE_XP_MULTIPLIERS[(muscle.name || '').toUpperCase().trim()] || 1.0;
+              const mCeil = nextMTier ? nextMTier.minXp : mFloor + Math.round(30000 * mult);
+              const mProgress = Math.min(Math.max((muscle.xp - mFloor) / (mCeil - mFloor), 0), 1);
+              const isSelected = selectedMuscle === muscle.name;
+              const badgeStyle = getMuscleBadgeStyle(mRankName, muscle.xp, isDark, muscle.name);
+
+              return (
+                <div
+                  key={muscle.name}
+                  onClick={() => setSelectedMuscle((prev) => (prev === muscle.name ? null : muscle.name))}
+                  className="ios-card"
+                  style={{
+                    padding: '16px 18px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10,
+                    border: isSelected ? '1.5px solid var(--accent-red)' : '0.5px solid var(--border-subtle)',
+                    boxShadow: isSelected ? '0 4px 16px rgba(255, 45, 85, 0.18)' : 'var(--shadow-sm)',
+                    transition: 'transform 0.15s ease, border-color 0.2s ease, box-shadow 0.2s ease',
+                  }}
+                >
+                  {/* Row 1: Muscle Name full without any truncation or collision */}
                   <div
                     style={{
-                      ...styles.muscleFill,
-                      width: `${mProgress * 100}%`,
-                      backgroundColor: color,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                      letterSpacing: '-0.2px',
+                      lineHeight: 1.25,
+                      wordBreak: 'break-word',
                     }}
-                  />
+                  >
+                    {muscle.name}
+                  </div>
+
+                  {/* Row 2: Rank Badge Pill on Left, Completion % on Right */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 800,
+                        color: badgeStyle.color,
+                        backgroundColor: badgeStyle.bg,
+                        border: `1px solid ${badgeStyle.border}`,
+                        padding: '2.5px 8px',
+                        borderRadius: 6,
+                        letterSpacing: '0.3px',
+                      }}
+                    >
+                      {mRankName}
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
+                      {Math.round(mProgress * 100)}%
+                    </span>
+                  </div>
+
+                  {/* Row 3: XP Value */}
+                  <div style={{ display: 'flex', alignItems: 'baseline', marginTop: 2 }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+                      {muscle.xp.toLocaleString()} <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)' }}>XP</span>
+                    </div>
+                  </div>
+
+                  {/* Row 4: Progress Bar */}
+                  <div style={{ height: 5, width: '100%', backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)', borderRadius: 9999, overflow: 'hidden' }}>
+                    <div
+                      style={{
+                        height: '100%',
+                        width: `${Math.round(mProgress * 100)}%`,
+                        backgroundColor: badgeStyle.barColor,
+                        borderRadius: 9999,
+                        transition: 'width 0.3s ease',
+                      }}
+                    />
+                  </div>
+
+                  {/* Daily XP Cap Reached indicator */}
+                  {muscle.isDailyCapped && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        marginTop: 2,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: 'var(--accent-red)',
+                        letterSpacing: '0.2px',
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: '50%',
+                          backgroundColor: 'var(--accent-red)',
+                          display: 'inline-block',
+                          boxShadow: '0 0 6px var(--accent-red)',
+                        }}
+                      />
+                      <span>MAX XP REACHED TODAY</span>
+                    </div>
+                  )}
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+
+          {/* Toggle View More / Show Less Button */}
+          {sortedMuscleGroups.length > 4 && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 14 }}>
+              <button
+                type="button"
+                onClick={() => setShowAllMuscles((prev) => !prev)}
+                className="ios-button-secondary"
+                style={{
+                  padding: '10px 22px',
+                  borderRadius: 9999,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <span>{showAllMuscles ? 'Show Less' : `View More (${sortedMuscleGroups.length - 4} more)`}</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: showAllMuscles ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }}>
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Selected Muscle Completed Workouts History */}
+        {/* Section: Selected Muscle Completed Workouts History */}
         {selectedMuscle && (
-          <div className="dashboard-muscle-history" style={styles.muscleWorkoutsCard}>
-            <div style={styles.muscleWorkoutsHeader}>
+          <div className="ios-card" style={{ padding: '22px 24px', border: '1.5px solid var(--accent-red)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div>
-                <div style={styles.eyebrow}>COMPLETED WORKOUT HISTORY</div>
-                <h3 style={styles.muscleWorkoutsTitle}>
-                  Completed for: <span style={{ color: '#10b981' }}>{selectedMuscle}</span>
-                </h3>
-                <div style={{ color: '#71717a', fontSize: 12, marginTop: 4 }}>
-                  {completedForMuscle.length === 0
-                    ? `No completed sessions on record for ${selectedMuscle}`
-                    : `${completedForMuscle.length} completed session${completedForMuscle.length > 1 ? 's' : ''} recorded`}
+                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.5px', color: 'var(--accent-red)', textTransform: 'uppercase' }}>
+                  COMPLETED WORKOUT LOGS
                 </div>
+                <h3 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: '2px 0 0' }}>
+                  Sessions Targeting {selectedMuscle}
+                </h3>
               </div>
 
               <button
                 onClick={() => setSelectedMuscle(null)}
-                style={styles.closeWorkoutsBtn}
-                title="Close"
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 18, cursor: 'pointer', padding: '4px 8px' }}
               >
                 ✕
               </button>
             </div>
 
             {completedForMuscle.length === 0 ? (
-              <div style={styles.emptyMuscleWorkouts}>
-                <div style={styles.emptyMuscleTitle}>
+              <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-muted)' }}>
+                <p style={{ fontSize: 15, fontWeight: 600, margin: 0, color: 'var(--text-secondary)' }}>
                   No completed workouts found for {selectedMuscle}.
-                </div>
-                <div style={styles.emptyMuscleSubtitle}>
-                  When you complete and log training sets targeting {selectedMuscle}, your completed history will appear here.
-                </div>
+                </p>
+                <p style={{ fontSize: 13, marginTop: 4 }}>
+                  Log training sets targeting {selectedMuscle} to track history and progression here.
+                </p>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {completedForMuscle.map((item) => {
                   const dateStr = item.completedAt
                     ? new Date(item.completedAt).toLocaleDateString('en-US', {
@@ -824,96 +1583,41 @@ export default function Dashboard() {
                       })
                     : 'Recent Session';
 
-                  // Aggregate sets and reps per distinct exercise
-                  const exAggMap = new Map();
-                  (item.logs || []).forEach((log) => {
-                    const name = log.exerciseName || 'Exercise';
-                    if (!exAggMap.has(name)) {
-                      exAggMap.set(name, {
-                        name,
-                        sets: 0,
-                        totalReps: 0,
-                        weight: log.weight ?? log.weightUsed ?? 0,
-                        volume: 0,
-                      });
-                    }
-                    const curr = exAggMap.get(name);
-                    const s = Number(log.sets) || 0;
-                    const r = Number(log.reps) || 0;
-                    const w = Number(log.weight ?? log.weightUsed) || 0;
-                    curr.sets += s;
-                    curr.totalReps += s * r;
-                    curr.volume += s * r * (w > 0 ? w : 1);
-                    if (w > 0) curr.weight = w;
-                  });
-                  const aggregatedList = Array.from(exAggMap.values());
-
-                  const sessionTitle = item.workoutName || 'Workout Session';
-
                   return (
-                    <div key={item.id} style={styles.completedCard}>
-                      {/* Top row: Workout title + date + badge */}
-                      <div style={styles.completedCardTop}>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={styles.workoutOriginTitle}>
-                            <span style={styles.workoutOriginPrefix}>WORKOUT:</span>
-                            {sessionTitle}
+                    <div
+                      key={item.id}
+                      style={{
+                        backgroundColor: 'var(--bg-input)',
+                        borderRadius: 14,
+                        padding: '16px 18px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 12,
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {item.workoutName || 'Workout Session'}
                           </div>
-                          <div style={styles.completedDate}>{dateStr}</div>
+                          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{dateStr}</div>
                         </div>
-                        <span style={styles.completedBadge}>COMPLETED</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-green)', backgroundColor: 'rgba(48, 209, 88, 0.15)', padding: '3px 8px', borderRadius: 9999 }}>
+                          COMPLETED
+                        </span>
                       </div>
 
-                      {/* Metrics row */}
-                      <div style={styles.completedMetricsRow}>
-                        <div style={styles.completedMetricItem}>
-                          <span style={styles.completedMetricLabel}>TOTAL SETS</span>
-                          <span style={styles.completedMetricValue}>{item.totalSets}</span>
+                      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', borderTop: '0.5px solid var(--border-subtle)', paddingTop: 10 }}>
+                        <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                          Sets: <strong style={{ color: 'var(--text-primary)' }}>{item.totalSets}</strong>
                         </div>
-                        <div style={styles.completedMetricDivider} />
-                        <div style={styles.completedMetricItem}>
-                          <span style={styles.completedMetricLabel}>VOLUME</span>
-                          <span style={styles.completedMetricValueGreen}>
-                            {(item.totalVolume || 0).toLocaleString()} kg
-                          </span>
+                        <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                          Volume: <strong style={{ color: 'var(--accent-green)' }}>{(item.totalVolume || 0).toLocaleString()} kg</strong>
                         </div>
-                        <div style={styles.completedMetricDivider} />
-                        <div style={styles.completedMetricItem}>
-                          <span style={styles.completedMetricLabel}>XP EARNED</span>
-                          <span style={styles.completedMetricValueOrange}>+{item.totalXp}</span>
+                        <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                          XP: <strong style={{ color: 'var(--accent-orange)' }}>+{item.totalXp}</strong>
                         </div>
                       </div>
-
-                      {/* Aggregated exercises: no duplicate lines, sets and reps accumulated */}
-                      {aggregatedList.length > 0 && (
-                        <div style={styles.aggExercisesContainer}>
-                          <div style={styles.aggExercisesTitle}>EXERCISES PERFORMED</div>
-                          {aggregatedList.map((agg) => (
-                            <div key={agg.name} style={styles.aggExerciseRow}>
-                              <div style={styles.aggExerciseName}>• {agg.name}</div>
-                              <div style={styles.aggExerciseMeta}>
-                                <span style={styles.aggHighlight}>{agg.sets} sets</span>
-                                <span style={styles.aggDot}>•</span>
-                                <span>{agg.totalReps} total reps</span>
-                                {agg.weight > 0 && (
-                                  <>
-                                    <span style={styles.aggDot}>•</span>
-                                    <span>{agg.weight} kg</span>
-                                  </>
-                                )}
-                                {agg.volume > 0 && (
-                                  <>
-                                    <span style={styles.aggDot}>•</span>
-                                    <span style={{ color: '#10b981', fontWeight: 800 }}>
-                                      +{agg.volume.toLocaleString()} kg
-                                    </span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   );
                 })}
@@ -921,22 +1625,44 @@ export default function Dashboard() {
             )}
           </div>
         )}
+
       </main>
 
-      {/* Edit Profile Modal */}
+      {/* Apple iOS Sheet Modal: Edit Vitals */}
       {showProfileModal && (
-        <div className="dashboard-modal-overlay" style={styles.modalOverlay}>
-          <div style={styles.modalCard}>
-            <div style={styles.modalHeader}>
-              <h3 style={styles.modalTitle}>Edit Physical Stats</h3>
-              <button onClick={() => setShowProfileModal(false)} style={styles.closeBtn}>
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.55)',
+          backdropFilter: 'blur(10px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 999,
+          padding: 20,
+        }}>
+          <div className="ios-card" style={{ width: '100%', maxWidth: 420, borderRadius: 24, padding: 24, boxShadow: 'var(--shadow-floating)', display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {/* Grabber handle */}
+            <div style={{ width: 36, height: 5, borderRadius: 2.5, backgroundColor: 'var(--text-muted)', opacity: 0.4, margin: '-6px auto 0' }} />
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                Edit Physical Vitals
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowProfileModal(false)}
+                style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: 'var(--bg-input)', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}
+              >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleUpdateProfile} style={styles.form}>
-              <div style={styles.field}>
-                <label style={styles.label}>HEIGHT (CM)</label>
+            <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, letterSpacing: '0.4px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>
+                  HEIGHT (CM)
+                </label>
                 <input
                   type="number"
                   step="0.1"
@@ -944,13 +1670,24 @@ export default function Dashboard() {
                   max="260"
                   value={newHeight}
                   onChange={(e) => setNewHeight(e.target.value)}
-                  style={styles.input}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    borderRadius: 12,
+                    border: '0.5px solid var(--border-subtle)',
+                    backgroundColor: 'var(--bg-input)',
+                    color: 'var(--text-primary)',
+                    fontSize: 16,
+                    outline: 'none',
+                  }}
                   required
                 />
               </div>
 
-              <div style={styles.field}>
-                <label style={styles.label}>WEIGHT (KG)</label>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, letterSpacing: '0.4px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>
+                  WEIGHT (KG)
+                </label>
                 <input
                   type="number"
                   step="0.1"
@@ -958,768 +1695,268 @@ export default function Dashboard() {
                   max="350"
                   value={newWeight}
                   onChange={(e) => setNewWeight(e.target.value)}
-                  style={styles.input}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    borderRadius: 12,
+                    border: '0.5px solid var(--border-subtle)',
+                    backgroundColor: 'var(--bg-input)',
+                    color: 'var(--text-primary)',
+                    fontSize: 16,
+                    outline: 'none',
+                  }}
                   required
                 />
               </div>
 
-              <button type="submit" disabled={savingProfile} style={styles.saveModalBtn}>
-                {savingProfile ? 'SAVING...' : 'SAVE CHANGES'}
-              </button>
+              {profileError && (
+                <div style={{ fontSize: 12, color: '#ff3b30', backgroundColor: 'rgba(255, 59, 48, 0.1)', padding: '8px 12px', borderRadius: 8, textAlign: 'center' }}>
+                  {profileError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowProfileModal(false)}
+                  className="ios-button-secondary"
+                  style={{ flex: 1, padding: '12px', borderRadius: 12, fontSize: 15, fontWeight: 600 }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingProfile}
+                  className="ios-button-primary"
+                  style={{ flex: 1, padding: '12px', borderRadius: 12, fontSize: 15, fontWeight: 700 }}
+                >
+                  {savingProfile ? 'Saving...' : 'Save Vitals'}
+                </button>
+              </div>
             </form>
+
+            {/* Danger Zone: Reset Muscle Progress & XP */}
+            <div style={{ borderTop: '0.5px solid var(--border-subtle)', paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Reset Progress
+              </div>
+              <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+                Reset all muscle group XP, ranks, and workout logs back to 0.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(true)}
+                disabled={resettingProgress}
+                style={{
+                  marginTop: 6,
+                  padding: '11px',
+                  borderRadius: 12,
+                  backgroundColor: 'rgba(255, 59, 48, 0.1)',
+                  border: '1px solid rgba(255, 59, 48, 0.25)',
+                  color: '#ff3b30',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'background-color 0.15s ease',
+                }}
+              >
+                Reset All Muscle XP to 0
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Apple Destructive Action Sheet: Email Confirmation for Reset All Progress */}
+      {showResetConfirm && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.72)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: 20,
+        }}>
+          <div className="ios-card" style={{ width: '100%', maxWidth: 400, borderRadius: 24, padding: '28px 24px', boxShadow: 'var(--shadow-floating)', textAlign: 'center' }}>
+            {!resetEmailSent ? (
+              <>
+                <div style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(255, 149, 0, 0.12)',
+                  color: 'var(--accent-orange)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 14px',
+                  border: '1px solid rgba(255, 149, 0, 0.25)',
+                }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                </div>
+
+                <h3 style={{ fontSize: 19, fontWeight: 800, margin: '0 0 8px', color: 'var(--text-primary)' }}>
+                  Email Verification Required
+                </h3>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 20px' }}>
+                  To protect your account data, progress cannot be erased directly. We will send a secure confirmation link to <strong style={{ color: 'var(--text-primary)' }}>{user?.email || 'your email'}</strong>.
+                </p>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    type="button"
+                    disabled={requestingResetEmail}
+                    onClick={() => {
+                      setShowResetConfirm(false);
+                      setResetEmailSent(false);
+                      setResetDevUrl(null);
+                    }}
+                    className="ios-button-secondary"
+                    style={{ flex: 1, padding: '12px', borderRadius: 14, fontSize: 14, fontWeight: 700 }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={requestingResetEmail}
+                    onClick={handleRequestResetEmail}
+                    className="ios-button-primary"
+                    style={{
+                      flex: 2,
+                      padding: '12px',
+                      borderRadius: 14,
+                      backgroundColor: 'var(--accent-orange)',
+                      color: '#ffffff',
+                      border: 'none',
+                      fontSize: 14,
+                      fontWeight: 800,
+                      cursor: requestingResetEmail ? 'not-allowed' : 'pointer',
+                      opacity: requestingResetEmail ? 0.7 : 1,
+                    }}
+                  >
+                    {requestingResetEmail ? 'Sending Email...' : 'Send Verification Email'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(48, 209, 88, 0.12)',
+                  color: 'var(--accent-green)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 14px',
+                  border: '1px solid rgba(48, 209, 88, 0.25)',
+                }}>
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </div>
+
+                <h3 style={{ fontSize: 19, fontWeight: 800, margin: '0 0 8px', color: 'var(--text-primary)' }}>
+                  Verification Email Sent
+                </h3>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 18px' }}>
+                  A confirmation link has been sent to <strong style={{ color: 'var(--text-primary)' }}>{user?.email}</strong>. Please click the button inside the email to authorize resetting your progress.
+                </p>
+
+                {resetDevUrl && (
+                  <div style={{ marginBottom: 16 }}>
+                    <a
+                      href={resetDevUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ios-button-secondary"
+                      style={{
+                        display: 'block',
+                        padding: '10px 14px',
+                        borderRadius: 12,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: 'var(--accent-blue)',
+                        textDecoration: 'none',
+                        border: '1px dashed var(--accent-blue)',
+                      }}
+                    >
+                      Open Verification Link (Dev Mode)
+                    </a>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowResetConfirm(false);
+                    setResetEmailSent(false);
+                    setResetDevUrl(null);
+                  }}
+                  className="ios-button-primary"
+                  style={{ width: '100%', padding: '12px', borderRadius: 14, fontSize: 14, fontWeight: 800 }}
+                >
+                  Done
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Floating Apple HIG Toast Notification */}
+      {toastMessage && (
+        <div style={{
+          position: 'fixed',
+          top: 24,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1100,
+          pointerEvents: 'none',
+          maxWidth: '90vw',
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            backgroundColor: 'var(--bg-card)',
+            color: 'var(--text-primary)',
+            padding: '10px 18px',
+            borderRadius: 9999,
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.28)',
+            border: '0.5px solid var(--border-subtle)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+          }}>
+            <div style={{
+              width: 20,
+              height: 20,
+              borderRadius: '50%',
+              backgroundColor: 'var(--accent-green)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#ffffff',
+              fontSize: 11,
+              fontWeight: 900,
+              flexShrink: 0,
+            }}>
+              ✓
+            </div>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>
+              {toastMessage}
+            </span>
           </div>
         </div>
       )}
     </div>
   );
 }
-
-const styles = {
-  page: {
-    minHeight: '100vh',
-    backgroundColor: '#09090b',
-    color: '#ffffff',
-  },
-  centerWrap: {
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#09090b',
-  },
-  spinner: {
-    width: 36,
-    height: 36,
-    border: '3px solid #27272a',
-    borderTopColor: '#10b981',
-    borderRadius: '50%',
-    animation: 'spin 0.8s linear infinite',
-  },
-  main: {
-    maxWidth: 1000,
-    margin: '0 auto',
-    padding: '32px 20px 60px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 24,
-  },
-  headerRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 16,
-  },
-  pageTitle: {
-    fontSize: 28,
-    fontWeight: 900,
-    letterSpacing: '0.5px',
-    margin: 0,
-  },
-  pageSubtitle: {
-    color: '#71717a',
-    fontSize: 14,
-    marginTop: 4,
-  },
-  startBtn: {
-    backgroundColor: '#ffffff',
-    color: '#09090b',
-    border: 'none',
-    padding: '10px 20px',
-    borderRadius: 6,
-    fontWeight: 800,
-    fontSize: 13,
-    letterSpacing: '0.4px',
-    boxShadow: 'none',
-    cursor: 'pointer',
-  },
-  statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-    gap: 16,
-  },
-  statCard: {
-    backgroundColor: '#111115',
-    border: '1px solid #1f1f25',
-    borderRadius: 12,
-    padding: '20px 22px',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-  },
-  statCardTop: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  statLabel: {
-    color: '#71717a',
-    fontSize: 12,
-    fontWeight: 700,
-    letterSpacing: '0.5px',
-  },
-  editStatBtn: {
-    color: '#10b981',
-    fontSize: 18,
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#1a1a22',
-    border: '1px solid #27272a',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    transition: 'all 0.15s ease',
-  },
-  statValue: {
-    color: '#ffffff',
-    fontSize: 28,
-    fontWeight: 900,
-    marginTop: 10,
-  },
-  card: {
-    backgroundColor: '#111115',
-    border: '1px solid #1f1f25',
-    borderRadius: 12,
-    padding: '22px 24px',
-  },
-  cardHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: 800,
-    letterSpacing: '0.5px',
-    margin: 0,
-  },
-  cardMeta: {
-    color: '#71717a',
-    fontSize: 11,
-    marginTop: 2,
-  },
-  badge: {
-    padding: '4px 10px',
-    borderRadius: 4,
-    fontSize: 11,
-    fontWeight: 800,
-    letterSpacing: '0.5px',
-  },
-  scaleContainer: {
-    position: 'relative',
-    padding: '16px 0 6px',
-  },
-  scaleTrack: {
-    height: 12,
-    borderRadius: 6,
-    overflow: 'hidden',
-    display: 'flex',
-  },
-  scaleSegment: {
-    height: '100%',
-  },
-  scaleMarker: {
-    position: 'absolute',
-    top: 2,
-    transform: 'translateX(-50%)',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    transition: 'left 0.4s ease',
-  },
-  markerPointer: {
-    width: 2,
-    height: 22,
-    backgroundColor: '#ffffff',
-    boxShadow: '0 0 6px rgba(255,255,255,0.8)',
-  },
-  markerLabel: {
-    fontSize: 10,
-    fontWeight: 900,
-    marginTop: 4,
-  },
-  scaleLabels: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    color: '#71717a',
-    fontSize: 10,
-    fontWeight: 700,
-    marginTop: 16,
-  },
-  sideToggle: {
-    display: 'flex',
-    border: '1px solid #27272a',
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  sideBtn: {
-    padding: '6px 14px',
-    fontSize: 10,
-    fontWeight: 800,
-    letterSpacing: '0.6px',
-    color: '#71717a',
-    backgroundColor: 'transparent',
-  },
-  sideBtnActive: {
-    backgroundColor: '#ffffff',
-    color: '#09090b',
-  },
-  visualizerContentGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-    gap: 20,
-    alignItems: 'start',
-    marginTop: 8,
-  },
-  visualizerMannequinCol: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    position: 'relative',
-    backgroundColor: '#0d0d11',
-    border: '1px solid #1f1f25',
-    borderRadius: 10,
-    padding: '16px 12px 20px',
-    overflow: 'hidden',
-  },
-  cornerRankBadge: {
-    position: 'absolute',
-    top: 14,
-    left: 14,
-    zIndex: 10,
-    backgroundColor: 'rgba(17, 17, 21, 0.94)',
-    backdropFilter: 'blur(6px)',
-    border: '1px solid #27272a',
-    borderRadius: 6,
-    padding: '8px 12px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 3,
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
-  },
-  cornerRankTop: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-  },
-  cornerRankDot: {
-    width: 7,
-    height: 7,
-    borderRadius: '50%',
-  },
-  cornerRankTitle: {
-    fontSize: 11,
-    fontWeight: 900,
-    letterSpacing: '0.8px',
-  },
-  cornerRankSub: {
-    fontSize: 10,
-    color: '#a1a1aa',
-    fontWeight: 700,
-  },
-  cornerMiniBar: {
-    height: 3,
-    backgroundColor: '#27272a',
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginTop: 2,
-    width: '100%',
-  },
-  cornerMiniFill: {
-    height: '100%',
-    borderRadius: 2,
-    transition: 'width 0.3s ease',
-  },
-  bodyWrap: {
-    minHeight: 340,
-    width: '100%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    margin: '10px auto',
-    textAlign: 'center',
-    position: 'relative',
-  },
-  bodyCenterContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    maxWidth: 320,
-    margin: '0 auto',
-    position: 'relative',
-    zIndex: 2,
-  },
-  bodyDetailsCol: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 16,
-  },
-  detailsHeader: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-  },
-  detailsTitle: {
-    fontSize: 18,
-    fontWeight: 900,
-    color: '#ffffff',
-    margin: 0,
-    letterSpacing: '0.5px',
-  },
-  infoCardsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-    gap: 12,
-  },
-  infoCard: {
-    backgroundColor: '#0d0d11',
-    border: '1px solid #1f1f25',
-    borderRadius: 8,
-    padding: '14px',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-    minHeight: 88,
-  },
-  infoCardLabel: {
-    color: '#71717a',
-    fontSize: 9,
-    fontWeight: 800,
-    letterSpacing: '0.6px',
-    marginBottom: 6,
-  },
-  infoCardValue: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: 900,
-    lineHeight: 1.2,
-  },
-  infoCardUnit: {
-    fontSize: 11,
-    color: '#a1a1aa',
-    fontWeight: 700,
-  },
-  infoCardMeta: {
-    color: '#71717a',
-    fontSize: 10,
-    fontWeight: 600,
-    marginTop: 6,
-  },
-  legend: {
-    borderTop: '1px solid #1f1f25',
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: 16,
-    paddingTop: 16,
-    justifyContent: 'center',
-  },
-  legendItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-  },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  legendText: {
-    color: '#a1a1aa',
-    fontSize: 10,
-    fontWeight: 800,
-  },
-  eyebrow: {
-    color: '#71717a',
-    fontSize: 10,
-    fontWeight: 800,
-    letterSpacing: '1.2px',
-  },
-  totalXpVal: {
-    fontSize: 26,
-    fontWeight: 900,
-    color: '#ffffff',
-    marginTop: 4,
-  },
-  rankBadge: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    border: '1px solid #3f3f46',
-    borderRadius: 8,
-    padding: '6px 16px',
-    backgroundColor: '#18181c',
-  },
-  rankNumber: {
-    color: '#10b981',
-    fontSize: 22,
-    fontWeight: 900,
-  },
-  rankLabel: {
-    color: '#71717a',
-    fontSize: 9,
-    fontWeight: 800,
-    letterSpacing: '1px',
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: '#27272a',
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginTop: 14,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#10b981',
-    borderRadius: 3,
-    transition: 'width 0.3s ease',
-  },
-  progressText: {
-    color: '#71717a',
-    fontSize: 10,
-    fontWeight: 700,
-    textAlign: 'right',
-    marginTop: 6,
-  },
-  sectionHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: 900,
-    letterSpacing: '1px',
-    margin: 0,
-  },
-  sectionMeta: {
-    color: '#71717a',
-    fontSize: 11,
-    fontWeight: 700,
-  },
-  muscleGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
-    gap: 12,
-  },
-  muscleCard: {
-    backgroundColor: '#111115',
-    border: '1.5px solid #ffffff',
-    borderRadius: 10,
-    padding: '16px',
-    cursor: 'pointer',
-    position: 'relative',
-    overflow: 'hidden',
-    outline: 'none',
-    WebkitTapHighlightColor: 'transparent',
-    userSelect: 'none',
-    transition: 'border-color 0.15s ease',
-  },
-  muscleCardSelected: {
-    borderColor: '#10b981',
-  },
-  muscleAccent: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-  },
-  muscleTop: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  muscleName: {
-    color: '#a1a1aa',
-    fontSize: 11,
-    fontWeight: 800,
-    letterSpacing: '1px',
-  },
-  muscleRank: {
-    fontSize: 10,
-    fontWeight: 900,
-  },
-  muscleXp: {
-    color: '#ffffff',
-    fontSize: 20,
-    fontWeight: 900,
-    margin: '8px 0',
-  },
-  muscleTrack: {
-    height: 4,
-    backgroundColor: '#27272a',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  muscleFill: {
-    height: '100%',
-    borderRadius: 2,
-    transition: 'width 0.3s ease',
-  },
-  muscleWorkoutsCard: {
-    backgroundColor: '#111115',
-    border: '1px solid #10b981',
-    borderRadius: 12,
-    padding: '22px 20px',
-    boxShadow: '0 4px 20px rgba(16, 185, 129, 0.1)',
-  },
-  muscleWorkoutsHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 18,
-  },
-  muscleWorkoutsTitle: {
-    fontSize: 18,
-    fontWeight: 900,
-    margin: 0,
-  },
-  closeWorkoutsBtn: {
-    color: '#a1a1aa',
-    fontSize: 14,
-    padding: '6px 10px',
-    backgroundColor: '#18181b',
-    border: '1px solid #27272a',
-    borderRadius: 6,
-    cursor: 'pointer',
-  },
-  emptyMuscleWorkouts: {
-    textAlign: 'center',
-    padding: '36px 16px',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 8,
-  },
-  emptyMuscleTitle: {
-    color: '#ffffff',
-    fontWeight: 900,
-    fontSize: 14,
-  },
-  emptyMuscleSubtitle: {
-    color: '#71717a',
-    fontSize: 12,
-    maxWidth: 380,
-    lineHeight: 1.5,
-  },
-  completedWorkoutsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-    gap: 14,
-  },
-  completedCard: {
-    backgroundColor: '#18181b',
-    border: '1px solid #27272a',
-    borderRadius: 8,
-    padding: 16,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 12,
-    width: '100%',
-    boxSizing: 'border-box',
-  },
-  completedCardTop: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  workoutOriginTitle: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: 900,
-    letterSpacing: '0.4px',
-    display: 'flex',
-    alignItems: 'baseline',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  workoutOriginPrefix: {
-    color: '#10b981',
-    fontWeight: 800,
-    fontSize: 11,
-    letterSpacing: '1px',
-  },
-  completedDate: {
-    color: '#71717a',
-    fontSize: 11,
-    marginTop: 3,
-  },
-  completedBadge: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    border: '1px solid #10b981',
-    color: '#86efac',
-    borderRadius: 4,
-    padding: '3px 8px',
-    fontSize: 9,
-    fontWeight: 900,
-    letterSpacing: '0.6px',
-    whiteSpace: 'nowrap',
-  },
-  completedMetricsRow: {
-    display: 'flex',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: '#111115',
-    border: '1px solid #27272a',
-    borderRadius: 6,
-    padding: '10px 12px',
-  },
-  completedMetricItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 2,
-  },
-  completedMetricLabel: {
-    color: '#71717a',
-    fontSize: 9,
-    fontWeight: 800,
-    letterSpacing: '0.6px',
-  },
-  completedMetricValue: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: 900,
-  },
-  completedMetricValueGreen: {
-    color: '#10b981',
-    fontSize: 14,
-    fontWeight: 900,
-  },
-  completedMetricValueOrange: {
-    color: '#f97316',
-    fontSize: 14,
-    fontWeight: 900,
-  },
-  completedMetricDivider: {
-    width: 1,
-    height: 22,
-    backgroundColor: '#27272a',
-  },
-  aggExercisesContainer: {
-    borderTop: '1px solid #27272a',
-    paddingTop: 10,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 6,
-  },
-  aggExercisesTitle: {
-    color: '#71717a',
-    fontSize: 9,
-    fontWeight: 900,
-    letterSpacing: '1px',
-    marginBottom: 4,
-  },
-  aggExerciseRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
-    backgroundColor: '#111115',
-    border: '1px solid #222226',
-    borderRadius: 6,
-    padding: '8px 12px',
-  },
-  aggExerciseName: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: 800,
-  },
-  aggExerciseMeta: {
-    display: 'flex',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 6,
-    color: '#a1a1aa',
-    fontSize: 12,
-  },
-  aggHighlight: {
-    color: '#ffffff',
-    fontWeight: 800,
-  },
-  aggDot: {
-    color: '#52525b',
-  },
-  modalOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.75)',
-    backdropFilter: 'blur(4px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    zIndex: 100,
-  },
-  modalCard: {
-    backgroundColor: '#18181b',
-    border: '1px solid #27272a',
-    borderRadius: 12,
-    padding: '24px 28px',
-    width: '100%',
-    maxWidth: 380,
-  },
-  modalHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 900,
-    margin: 0,
-  },
-  closeBtn: {
-    color: '#a1a1aa',
-    fontSize: 18,
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 16,
-  },
-  field: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 6,
-  },
-  label: {
-    color: '#a1a1aa',
-    fontSize: 10,
-    fontWeight: 800,
-    letterSpacing: '1px',
-  },
-  input: {
-    backgroundColor: '#09090b',
-    border: '1px solid #27272a',
-    borderRadius: 6,
-    color: '#ffffff',
-    padding: '12px 14px',
-    fontSize: 14,
-    outline: 'none',
-  },
-  saveModalBtn: {
-    height: 46,
-    backgroundColor: '#10b981',
-    color: '#ffffff',
-    borderRadius: 6,
-    fontWeight: 900,
-    fontSize: 12,
-    letterSpacing: '1px',
-    marginTop: 8,
-  },
-};
