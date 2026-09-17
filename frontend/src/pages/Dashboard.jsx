@@ -471,6 +471,36 @@ export default function Dashboard() {
     }
   };
 
+  const handleDirectReset = async () => {
+    if (!window.confirm('Are you sure you want to reset all muscle progress, gym workout logs, and running history to 0? This cannot be undone.')) {
+      return;
+    }
+    setResettingProgress(true);
+    try {
+      const uId = user?.id || user?.Id;
+      const res = await fetchApi(`/progress/reset/user/${uId}`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        localStorage.removeItem(`completed_workouts_${uId}`);
+        localStorage.removeItem('fitmetrics_calisthenics_xp');
+        localStorage.removeItem('fitmetrics_cali_sessions_count');
+        localStorage.removeItem(`fitmetrics_calisthenics_xp_${uId}`);
+        localStorage.removeItem(`fitmetrics_cali_sessions_count_${uId}`);
+        setShowResetConfirm(false);
+        triggerToast('Progress successfully reset to 0');
+        window.location.reload();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        triggerToast(data.message || 'Error resetting progress.');
+      }
+    } catch (err) {
+      triggerToast('Error resetting progress: ' + err.message);
+    } finally {
+      setResettingProgress(false);
+    }
+  };
+
   const bmi = height > 0 ? (weight / Math.pow(height / 100, 2)).toFixed(1) : '22.0';
   const bmiNumber = parseFloat(bmi);
   const bmiInfo = getBmiInfo(bmiNumber);
@@ -1803,33 +1833,20 @@ export default function Dashboard() {
                 </div>
 
                 <h3 style={{ fontSize: 19, fontWeight: 800, margin: '0 0 8px', color: 'var(--text-primary)' }}>
-                  Email Verification Required
+                  Reset All Progress
                 </h3>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 20px' }}>
-                  To protect your account data, progress cannot be erased directly. We will send a secure confirmation link to <strong style={{ color: 'var(--text-primary)' }}>{user?.email || 'your email'}</strong>.
+                  This will reset all your muscle XP, gym workout logs, and running history to 0. You can reset immediately or send a confirmation link to <strong style={{ color: 'var(--text-primary)' }}>{user?.email || 'your email'}</strong>.
                 </p>
 
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <button
                     type="button"
-                    disabled={requestingResetEmail}
-                    onClick={() => {
-                      setShowResetConfirm(false);
-                      setResetEmailSent(false);
-                      setResetDevUrl(null);
-                    }}
-                    className="ios-button-secondary"
-                    style={{ flex: 1, padding: '12px', borderRadius: 14, fontSize: 14, fontWeight: 700 }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    disabled={requestingResetEmail}
-                    onClick={handleRequestResetEmail}
+                    disabled={resettingProgress || requestingResetEmail}
+                    onClick={handleDirectReset}
                     className="ios-button-primary"
                     style={{
-                      flex: 2,
+                      width: '100%',
                       padding: '12px',
                       borderRadius: 14,
                       backgroundColor: 'var(--accent-orange)',
@@ -1837,11 +1854,44 @@ export default function Dashboard() {
                       border: 'none',
                       fontSize: 14,
                       fontWeight: 800,
-                      cursor: requestingResetEmail ? 'not-allowed' : 'pointer',
-                      opacity: requestingResetEmail ? 0.7 : 1,
+                      cursor: (resettingProgress || requestingResetEmail) ? 'not-allowed' : 'pointer',
+                      opacity: (resettingProgress || requestingResetEmail) ? 0.7 : 1,
                     }}
                   >
-                    {requestingResetEmail ? 'Sending Email...' : 'Send Verification Email'}
+                    {resettingProgress ? 'Resetting Progress...' : 'Reset All Progress to 0 Now'}
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={resettingProgress || requestingResetEmail}
+                    onClick={handleRequestResetEmail}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      backgroundColor: 'transparent',
+                      color: 'var(--accent-blue)',
+                      fontWeight: 600,
+                      fontSize: 13,
+                      borderRadius: 12,
+                      border: '1px solid var(--accent-blue)',
+                      cursor: (resettingProgress || requestingResetEmail) ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {requestingResetEmail ? 'Sending Email...' : 'Send Verification Email Instead'}
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={resettingProgress || requestingResetEmail}
+                    onClick={() => {
+                      setShowResetConfirm(false);
+                      setResetEmailSent(false);
+                      setResetDevUrl(null);
+                    }}
+                    className="ios-button-secondary"
+                    style={{ width: '100%', padding: '12px', borderRadius: 14, fontSize: 14, fontWeight: 700 }}
+                  >
+                    Cancel
                   </button>
                 </div>
               </>
@@ -1889,23 +1939,46 @@ export default function Dashboard() {
                         border: '1px dashed var(--accent-blue)',
                       }}
                     >
-                      Open Verification Link (Dev Mode)
+                      Open Confirmation Page
                     </a>
                   </div>
                 )}
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowResetConfirm(false);
-                    setResetEmailSent(false);
-                    setResetDevUrl(null);
-                  }}
-                  className="ios-button-primary"
-                  style={{ width: '100%', padding: '12px', borderRadius: 14, fontSize: 14, fontWeight: 800 }}
-                >
-                  Done
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <button
+                    type="button"
+                    disabled={resettingProgress}
+                    onClick={handleDirectReset}
+                    className="ios-button-primary"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      borderRadius: 14,
+                      backgroundColor: 'var(--accent-orange)',
+                      color: '#ffffff',
+                      border: 'none',
+                      fontSize: 14,
+                      fontWeight: 800,
+                      cursor: resettingProgress ? 'not-allowed' : 'pointer',
+                      opacity: resettingProgress ? 0.7 : 1,
+                    }}
+                  >
+                    {resettingProgress ? 'Resetting Progress...' : 'Reset All Progress to 0 Now'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowResetConfirm(false);
+                      setResetEmailSent(false);
+                      setResetDevUrl(null);
+                    }}
+                    className="ios-button-secondary"
+                    style={{ width: '100%', padding: '12px', borderRadius: 14, fontSize: 14, fontWeight: 700 }}
+                  >
+                    Done
+                  </button>
+                </div>
               </>
             )}
           </div>

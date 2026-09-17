@@ -199,11 +199,37 @@ namespace Fit_Metrics.Controllers
     }
 
     [HttpPost("reset/user/{userId}")]
-    public IActionResult ResetUserProgressDirect(int userId)
+    public async Task<IActionResult> ResetUserProgressDirect(int userId)
     {
-      return BadRequest(new
+      var currentUserId = GetCurrentUserId();
+      if (currentUserId == null || currentUserId.Value != userId)
       {
-        message = "Direct progress reset is disabled for account security. Please request email confirmation via /api/auth/request-action-confirmation."
+        return Unauthorized();
+      }
+
+      var progresses = await _context.UserMuscleProgresses.Where(p => p.UserId == userId).ToListAsync();
+      if (progresses.Any())
+      {
+        _context.UserMuscleProgresses.RemoveRange(progresses);
+      }
+
+      var logs = await _context.WorkoutLogs.Where(l => l.UserId == userId).ToListAsync();
+      if (logs.Any())
+      {
+        _context.WorkoutLogs.RemoveRange(logs);
+      }
+
+      var runs = await _context.RunSessions.Where(r => r.UserId == userId).ToListAsync();
+      if (runs.Any())
+      {
+        _context.RunSessions.RemoveRange(runs);
+      }
+
+      await _context.SaveChangesAsync();
+
+      return Ok(new
+      {
+        message = "Your muscle progress, gym workout logs, and running sessions have been reset to 0."
       });
     }
 

@@ -317,11 +317,42 @@ namespace Fit_Metrics.Controllers
 
     [Authorize(AuthenticationSchemes = "CookieAuth")]
     [HttpDelete("account")]
-    public IActionResult DeleteAccountDirect()
+    public async Task<IActionResult> DeleteAccountDirect()
     {
-      return BadRequest(new
+      var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+      if (!int.TryParse(userIdClaim, out int userId))
       {
-        message = "Direct account deletion without confirmation is disabled for your security. Please request email confirmation via /api/auth/request-action-confirmation."
+        return Unauthorized();
+      }
+
+      var user = await _context.Users.FindAsync(userId);
+      if (user == null) return NotFound(new { message = "User not found." });
+
+      var workouts = await _context.Workouts.Where(w => w.UserId == userId).ToListAsync();
+      var workoutLogs = await _context.WorkoutLogs.Where(l => l.UserId == userId).ToListAsync();
+      var progress = await _context.UserMuscleProgresses.Where(p => p.UserId == userId).ToListAsync();
+      var tokens = await _context.ActionConfirmationTokens.Where(t => t.UserId == userId).ToListAsync();
+      var runs = await _context.RunSessions.Where(r => r.UserId == userId).ToListAsync();
+
+      _context.Workouts.RemoveRange(workouts);
+      _context.WorkoutLogs.RemoveRange(workoutLogs);
+      _context.UserMuscleProgresses.RemoveRange(progress);
+      _context.ActionConfirmationTokens.RemoveRange(tokens);
+      _context.RunSessions.RemoveRange(runs);
+      _context.Users.Remove(user);
+      await _context.SaveChangesAsync();
+
+      try
+      {
+        await HttpContext.SignOutAsync("CookieAuth");
+      }
+      catch
+      {
+      }
+
+      return Ok(new
+      {
+        message = "Your FitMetrics account and all associated workout data have been permanently deleted."
       });
     }
 

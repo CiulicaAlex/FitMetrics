@@ -50,6 +50,31 @@ export default function Navbar({ user }) {
     }
   };
 
+  const handleDirectDelete = async () => {
+    if (!window.confirm('Are you sure you want to permanently delete your account? This action cannot be undone.')) {
+      return;
+    }
+    setDeletingAccount(true);
+    setDeleteError(null);
+    try {
+      const response = await fetchApi('/auth/account', {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        localStorage.clear();
+        setShowDeleteConfirm(false);
+        navigate('/', { replace: true });
+      } else {
+        const data = await response.json().catch(() => ({}));
+        setDeleteError(data.message || 'Could not delete account. Please try again.');
+      }
+    } catch {
+      setDeleteError('Could not connect to the server to delete account.');
+    } finally {
+      setDeletingAccount(false);
+    }
+  };
+
   useEffect(() => {
     const handleOutsideClick = (e) => {
       if (accountRef.current && !accountRef.current.contains(e.target)) {
@@ -177,14 +202,52 @@ export default function Navbar({ user }) {
                     <line x1="12" y1="17" x2="12.01" y2="17"/>
                   </svg>
                 </div>
-                <h3 style={styles.confirmTitle}>Delete Account Verification</h3>
+                <h3 style={styles.confirmTitle}>Delete Account</h3>
                 <p style={styles.confirmText}>
-                  For your safety, account deletion requires email verification. We will dispatch an authorization link to <strong style={{ color: 'var(--text-primary)' }}>{email}</strong>.
+                  This action cannot be undone. All your workouts, progress, and history will be permanently erased. You can delete your account directly now, or request an email verification link.
                 </p>
 
                 {deleteError && <div style={styles.confirmError}>{deleteError}</div>}
 
-                <div style={styles.confirmActions}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16 }}>
+                  <button
+                    type="button"
+                    onClick={handleDirectDelete}
+                    style={{
+                      ...styles.confirmDeleteBtn,
+                      width: '100%',
+                      padding: '12px',
+                      backgroundColor: '#ff3b30',
+                      color: '#fff',
+                      fontWeight: 700,
+                      borderRadius: 12,
+                      border: 'none',
+                      cursor: deletingAccount ? 'not-allowed' : 'pointer',
+                    }}
+                    disabled={deletingAccount}
+                  >
+                    {deletingAccount ? 'Deleting Account...' : 'Permanently Delete Account Now'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleRequestDeleteEmail}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      backgroundColor: 'transparent',
+                      color: 'var(--accent-blue)',
+                      fontWeight: 600,
+                      fontSize: 13,
+                      borderRadius: 12,
+                      border: '1px solid var(--accent-blue)',
+                      cursor: deletingAccount ? 'not-allowed' : 'pointer',
+                    }}
+                    disabled={deletingAccount}
+                  >
+                    {deletingAccount ? 'Sending Email...' : 'Send Verification Email Instead'}
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => {
@@ -197,14 +260,6 @@ export default function Navbar({ user }) {
                     disabled={deletingAccount}
                   >
                     Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleRequestDeleteEmail}
-                    style={styles.confirmDeleteBtn}
-                    disabled={deletingAccount}
-                  >
-                    {deletingAccount ? 'Sending Email...' : 'Send Deletion Email'}
                   </button>
                 </div>
               </>
@@ -241,12 +296,31 @@ export default function Navbar({ user }) {
                         border: '1px dashed var(--accent-blue)',
                       }}
                     >
-                      Open Verification Link (Dev Mode)
+                      Open Confirmation Page
                     </a>
                   </div>
                 )}
 
-                <div style={styles.confirmActions}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={handleDirectDelete}
+                    style={{
+                      ...styles.confirmDeleteBtn,
+                      width: '100%',
+                      padding: '12px',
+                      backgroundColor: '#ff3b30',
+                      color: '#fff',
+                      fontWeight: 700,
+                      borderRadius: 12,
+                      border: 'none',
+                      cursor: deletingAccount ? 'not-allowed' : 'pointer',
+                    }}
+                    disabled={deletingAccount}
+                  >
+                    {deletingAccount ? 'Deleting Account...' : 'Permanently Delete Account Now'}
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => {
