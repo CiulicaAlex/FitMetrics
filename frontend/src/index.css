@@ -1,47 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
 
 :root,
-[data-theme="light"] {
-  --bg-main: #f2f2f7;
-  --bg-card: #ffffff;
-  --bg-card-subtle: #ffffff;
-  --bg-input: #f2f2f7;
-  --border-subtle: rgba(60, 60, 67, 0.12);
-  --border-focus: rgba(60, 60, 67, 0.28);
-  --text-primary: #000000;
-  --text-secondary: #3c3c43;
-  --text-muted: #6c6c70;
-  --text-dim: #8e8e93;
-
-  /* Apple Health & Fitness Accents */
-  --accent-red: #ff2d55;
-  --accent-green: #30d158;
-  --accent-cyan: #00c7be;
-  --accent-blue: #007aff;
-  --accent-yellow: #ffcc00;
-  --accent-orange: #ff9500;
-  --accent-purple: #af52de;
-  --accent-pink: #ff375f;
-
-  /* Apple Tab Bar */
-  --tabbar-bg: rgba(255, 255, 255, 0.98);
-  --tabbar-border: rgba(60, 60, 67, 0.2);
-  --tabbar-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
-  --tabbar-active: #fa114f;
-  --tabbar-inactive: #8e8e93;
-
-  /* iOS Segmented Control */
-  --ios-segmented-bg: rgba(118, 118, 128, 0.12);
-  --ios-segment-active-bg: #ffffff;
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.04);
-  --shadow-floating: 0 12px 36px rgba(0, 0, 0, 0.09);
-
-  --wave-color: #fa114f;
-  --wave-glow: rgba(250, 17, 79, 0.25);
-}
-
 [data-theme="dark"] {
   --bg-main: #000000;
   --bg-card: #1c1c1e;
@@ -81,6 +40,47 @@
 
   --wave-color: #fa114f;
   --wave-glow: rgba(250, 17, 79, 0.35);
+}
+
+[data-theme="light"] {
+  --bg-main: #f2f2f7;
+  --bg-card: #ffffff;
+  --bg-card-subtle: #ffffff;
+  --bg-input: #f2f2f7;
+  --border-subtle: rgba(60, 60, 67, 0.12);
+  --border-focus: rgba(60, 60, 67, 0.28);
+  --text-primary: #000000;
+  --text-secondary: #3c3c43;
+  --text-muted: #6c6c70;
+  --text-dim: #8e8e93;
+
+  /* Apple Health & Fitness Accents */
+  --accent-red: #ff2d55;
+  --accent-green: #30d158;
+  --accent-cyan: #00c7be;
+  --accent-blue: #007aff;
+  --accent-yellow: #ffcc00;
+  --accent-orange: #ff9500;
+  --accent-purple: #af52de;
+  --accent-pink: #ff375f;
+
+  /* Apple Tab Bar */
+  --tabbar-bg: rgba(255, 255, 255, 0.98);
+  --tabbar-border: rgba(60, 60, 67, 0.2);
+  --tabbar-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+  --tabbar-active: #fa114f;
+  --tabbar-inactive: #8e8e93;
+
+  /* iOS Segmented Control */
+  --ios-segmented-bg: rgba(118, 118, 128, 0.12);
+  --ios-segment-active-bg: #ffffff;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.04);
+  --shadow-floating: 0 12px 36px rgba(0, 0, 0, 0.09);
+
+  --wave-color: #fa114f;
+  --wave-glow: rgba(250, 17, 79, 0.25);
 }
 
 *,
