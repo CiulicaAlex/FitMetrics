@@ -23,13 +23,24 @@ builder.Services.AddScoped<Fit_Metrics.Services.ICurrentUserService, Fit_Metrics
 builder.Services.AddScoped<Fit_Metrics.Services.IEmailService, Fit_Metrics.Services.EmailService>();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-  ?? "Data Source=data/fitmetrics.db";
-var useSqlite = builder.Configuration.GetValue("Database:Provider", "Sqlite")
-  .Equals("Sqlite", StringComparison.OrdinalIgnoreCase);
+var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+var usePostgres = !string.IsNullOrWhiteSpace(databaseUrl);
 
-if (useSqlite)
+if (usePostgres)
 {
+  // Production: Neon / external PostgreSQL via DATABASE_URL
+  // DATABASE_URL format: postgresql://user:password@host/dbname?sslmode=require
+  var uri = new Uri(databaseUrl!);
+  var userInfo = uri.UserInfo.Split(':');
+  var npgsqlConnectionString = $"Host={uri.Host};Port={(uri.Port > 0 ? uri.Port : 5432)};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
+  builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(npgsqlConnectionString));
+}
+else
+{
+  // Local development: SQLite
+  var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? "Data Source=data/fitmetrics.db";
+
   var sqlitePath = connectionString
     .Replace("Data Source=", string.Empty, StringComparison.OrdinalIgnoreCase)
     .Trim();
@@ -45,10 +56,6 @@ if (useSqlite)
   }
 
   builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
-}
-else
-{
-  builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
 }
 
 var configuredOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? [];
@@ -104,8 +111,15 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
   var database = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-  if (useSqlite)
+
+  if (usePostgres)
   {
+    // PostgreSQL: EnsureCreated creates all tables from the EF model cleanly
+    database.Database.EnsureCreated();
+  }
+  else
+  {
+    // SQLite local dev: EnsureCreated + manual migrations for backward compat
     database.Database.EnsureCreated();
 
     // EnsureCreated does not alter an existing SQLite database when the model
@@ -197,8 +211,10 @@ using (var scope = app.Services.CreateScope())
       existingUsers[0].Gender = "MALE";
       database.SaveChanges();
     }
+  }
 
-    var defaultExercises = new[]
+  // Seed default exercises for both PostgreSQL and SQLite
+  var defaultExercises = new[]
     {
       // Chest (Barbell, Dumbbell, Cables, Machines)
       new Exercise { Name = "Bench Press", MuscleGroup = "Chest", VideoUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/pectorals/barbell-bench-press.gif" },
@@ -347,7 +363,6 @@ using (var scope = app.Services.CreateScope())
     if (changed)
     {
       database.SaveChanges();
-    }
   }
 }
 
